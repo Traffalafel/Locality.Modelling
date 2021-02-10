@@ -1,0 +1,14 @@
+*.obj
+*.mtl
+*.tif
+*.asc
+*.asc.*
+*.prj
+*.bin
+
+bins/
+models/
+ascs/
+tifs/
+.vscode/
+__pycache__/
