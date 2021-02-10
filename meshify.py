@@ -71,11 +71,12 @@ def meshify(heights, block_size, ground_depth):
         offset_hi += n_cols
 
     # Add bottom square
+    offset_bottom = n_heights + n_rows*2 + n_cols*2
     lines_out.append(f"v {0.5*block_size} 0 {0.5*block_size}\n")
     lines_out.append(f"v {(n_cols-0.5)*block_size} 0 {0.5*block_size}\n")
     lines_out.append(f"v {0.5*block_size} 0 {(n_rows-0.5)*block_size}\n")
     lines_out.append(f"v {(n_cols-0.5)*block_size} 0 {(n_rows-0.5)*block_size}\n")
-    lines_out.append(f"f -1 -2 -3\n")
-    lines_out.append(f"f -2 -3 -4\n")
+    lines_out.append(f"f {offset_bottom+1} {offset_bottom+2} {offset_bottom+3}\n")
+    lines_out.append(f"f {offset_bottom+2} {offset_bottom+3} {offset_bottom+4}\n")
 
     return lines_out
