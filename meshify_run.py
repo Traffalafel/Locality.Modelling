@@ -2,6 +2,8 @@ import argparse
 from read_asc import read_asc, aggregate, boost_y
 from meshify import meshify
 
+GROUND_DEPTH = 20
+
 def main():
 
     # Define arguments
@@ -27,7 +29,7 @@ def main():
 
     # Meshify
     block_size = 0.4 * AGGREG_SIZE
-    lines_out = meshify(heights, block_size)
+    lines_out = meshify(heights, block_size, GROUND_DEPTH)
 
     # Write output
     with open(file_path_out, 'w+') as fd:
