@@ -12,6 +12,6 @@ Get-ChildItem $input_dir -Filter "*.tif" | ForEach-Object {
     $file_out_path = Join-Path -Path $output_dir -ChildPath $_.Name
 
     Write-Output "Processing file $($_.Name)"
-    python aggregate_tif_run.py $_.FullName $file_out_path
+    python aggregate_tifs.py $_.FullName $file_out_path
 
 }
