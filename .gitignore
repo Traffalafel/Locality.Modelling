@@ -5,7 +5,9 @@
 *.asc.*
 *.prj
 *.bin
+*.shp
 
+shps/
 bins/
 models/
 ascs/

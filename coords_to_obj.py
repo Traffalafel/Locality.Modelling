@@ -12,7 +12,7 @@ KM_TO_POINTS_RATIO = 625
 ASC_FILE_METRES = 1000
 AGGREG_SIZE = 4
 AGGREG_METHOD = "max"
-Y_BOOST = 1.5
+Z_BOOST = 1.5
 GROUND_DEPTH = 30
 
 def main():
@@ -61,6 +61,10 @@ def main():
     z_max = ceil(z_max_metres * KM_TO_POINTS_RATIO / 1000)
 
     heights_out = grid.get_heights(x_min, x_max, z_min, z_max)
+
+    for i in range(len(heights_out)):
+        for j in range(len(heights_out[0])):
+            heights_out[i][j] *= Z_BOOST
 
     block_size = 0.4 * AGGREG_SIZE
     lines_out = meshify(heights_out, block_size, GROUND_DEPTH)

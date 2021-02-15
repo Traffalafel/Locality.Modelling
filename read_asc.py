@@ -63,7 +63,7 @@ def aggregate(heights, aggreg_size, aggreg_method):
 
     return heights_aggregated
 
-def boost_y(heights, boost):
+def boost_z(heights, boost):
     n_rows = len(heights)
     n_cols = len(heights[0])
     for i in range(n_rows):
