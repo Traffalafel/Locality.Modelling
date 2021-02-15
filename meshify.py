@@ -42,15 +42,14 @@ def gen_monochrome_faces(n_rows, n_cols):
 
 def meshify(heights, block_size, base_height, materials=None, materials_names=None, mtllib=None):
 
-    n_rows = len(heights)
-    n_cols = len(heights[0])
+    n_rows, n_cols = heights.shape
     n_heights = n_rows*n_cols
 
     print(f"n_rows: {n_rows}")
     print(f"n_cols: {n_cols}")
     print(f"n_heights: {n_heights}")
 
-    min_y = min(min(heights[i] for i in range(n_rows)))
+    min_y = heights.min()
 
     lines_out = []
 

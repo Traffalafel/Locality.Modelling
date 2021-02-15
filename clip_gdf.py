@@ -3,12 +3,12 @@ from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
 
 # Args
-FILE_IN_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads.shp"
-FILE_OUT_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads_clipped.shp"
+FILE_IN_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads_cph.shp"
+FILE_OUT_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads.shp"
 BOUNDS_W = 700000
-BOUNDS_E = 701000
+BOUNDS_E = 705000
 BOUNDS_S = 6170000
-BOUNDS_N = 6171000
+BOUNDS_N = 6175000
 
 # Constants
 ETRS89_UTM32N = 3044

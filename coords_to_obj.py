@@ -7,13 +7,33 @@ from meshify import meshify
 from math import floor, ceil
 
 WSG84_EPSG = 4326
-ETRS89_UTM32_EPSG = 3044
 KM_TO_POINTS_RATIO = 625
 ASC_FILE_METRES = 1000
 AGGREG_SIZE = 4
 AGGREG_METHOD = "max"
 Z_BOOST = 1.5
+
+# Arguments
 GROUND_DEPTH = 30
+
+# Constants
+ORIGINAL_TIF_PIXELS = 2500
+ETRS89_UTM32_EPSG = 25832
+
+def get_tif_files(bounds_w, bounds_e, bounds_s, bounds_n, aggreg_size):
+    
+    file_pixels = ORIGINAL_TIF_PIXELS / aggreg_size
+
+    sw_file_x = int(sw_x // file_pixels)
+    sw_file_y = int(sw_y // file_pixels)
+    ne_file_x = int(ne_x // file_pixels)
+    ne_file_y = int(ne_y // file_pixels)
+
+    file_names = []
+    for file_x in range(sw_file_x, ne_file_x+1):
+        for file_y in range(sw_file_y, ne_file_y+1):
+            file_name = f"DSM_1km_{file_y}_{file_x}.tif"
+            file_names.append(file_name)
 
 def main():
 
@@ -21,6 +41,7 @@ def main():
         print("Usage: <bins_dir> <lat> <lng> <length_x> <length_y> <file_out>")
         return
     
+    # Parse arguments
     bins_dir_path = sys.argv[1]
     input_lat = float(sys.argv[2])
     input_lon = float(sys.argv[3])
