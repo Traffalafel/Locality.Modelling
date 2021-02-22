@@ -6,14 +6,11 @@ from shapely.geometry import Polygon
 import os
 import math
 
-# Arguments
-AGGREG_SIZE = 4
-
 # Constants
 TIF_FILE_KMS = 1000
 ETRS89_UTM32_EPSG = 25832
 
-def get_tif_paths(bounds, aggreg_size, tifs_dir_path):
+def get_tif_paths(bounds, tifs_dir_path):
     
     bounds_w, bounds_e, bounds_s, bounds_n = bounds
 
@@ -25,7 +22,7 @@ def get_tif_paths(bounds, aggreg_size, tifs_dir_path):
     file_paths = []
     for file_x in range(min_file_x, max_file_x+1):
         for file_y in range(min_file_y, max_file_y+1):
-            file_name = f"DSM_1km_{file_y}_{file_x}.tif"
+            file_name = f"{file_x}_{file_y}.tif"
             file_path = os.path.join(tifs_dir_path, file_name)
             file_paths.append(file_path)
 
@@ -60,10 +57,10 @@ def mask_data(heights, transform, bounds):
         return heights_new, transform_new
 
 
-def get_heights(tifs_dir_path, bounds):
+def get_contents(tifs_dir_path, bounds):
     bounds_w, bounds_e, bounds_s, bounds_n = bounds
 
-    tif_paths = get_tif_paths(bounds, AGGREG_SIZE, tifs_dir_path)
+    tif_paths = get_tif_paths(bounds, tifs_dir_path)
     datasets = []
     for tif_path in tif_paths:
         ds = rasterio.open(tif_path)

@@ -45,6 +45,7 @@ def meshify(heights, block_size, base_height, materials=None, materials_names=No
     n_rows, n_cols = heights.shape
     n_heights = n_rows*n_cols
 
+    print(f"CREATING MESH")
     print(f"n_rows: {n_rows}")
     print(f"n_cols: {n_cols}")
     print(f"n_heights: {n_heights}")

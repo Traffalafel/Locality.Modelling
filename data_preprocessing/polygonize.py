@@ -3,9 +3,7 @@ import numpy as np
 from shapely.geometry import Polygon, LineString, MultiLineString, Point
 import matplotlib.pyplot as plt
 
-# Args
-FILE_IN_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads.shp"
-FILE_OUT_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads_rect.shp"
+# Arguments
 
 # Constants
 ETRS89_UTM32N = 3044
@@ -44,7 +42,7 @@ WIDTH_MAPPING = {
     'unkown': None,
 }
 
-def rectanglify_linesegment(p1, p2, width):
+def polygonize_linesegment(p1, p2, width):
 
     # Set (x1, y1) as the leftmost point
     x1, y1 = p1
@@ -85,15 +83,17 @@ def rectanglify_linesegment(p1, p2, width):
 
     return rectangle, c1, c2
 
-def rectanglify_line(geometry, width):
+def polygonize_line(geometry, width):
     outputs = []
     for idx, coord in enumerate(geometry.coords[:-1]):
         coord_next = geometry.coords[idx+1]
-        geoms = rectanglify_linesegment(coord, coord_next, width)
+        geoms = polygonize_linesegment(coord, coord_next, width)
         outputs += geoms
     return outputs
 
-def rectanglify(df):
+def polygonize(df, bounds):
+
+    x_min, x_max, y_min, y_max = bounds
 
     df_out = geopandas.GeoDataFrame(columns=['geometry', 'fclass'], crs=ETRS89_UTM32N)
 
@@ -110,22 +110,27 @@ def rectanglify(df):
 
         if type(geometry) == MultiLineString:
             for line in geometry.geoms:
-                shapes += rectanglify_line(line, width)
+                shapes += polygonize_line(line, width)
             continue
 
         if type(geometry) == LineString:
-            shapes += rectanglify_line(geometry, width)
+            shapes += polygonize_line(geometry, width)
             continue
 
     for idx, shape in enumerate(shapes):
         row = [shape, fclass]
         df_out.loc[len(df_out) + idx] = row
 
+    # Clip new shapes to the original bound
+    bounds_polygon = Polygon([
+        (x_min, y_min),
+        (x_min, y_max),
+        (x_max, y_max),
+        (x_max, y_min)
+    ])
+    bounds_df = geopandas.GeoDataFrame([1], geometry=[bounds_polygon], crs=df.crs)
+
+    df_out = geopandas.clip(df_out, bounds_df)
+
     return df_out
-
-def main():
-    df = geopandas.read_file(FILE_IN_PATH)
-    df = rectanglify(df)
-    df.to_file(FILE_OUT_PATH)
-
-main()
+    
