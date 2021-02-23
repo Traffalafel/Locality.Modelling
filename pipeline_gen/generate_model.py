@@ -8,10 +8,10 @@ from math import floor, ceil
 from os.path import join
 
 # ARGS
-HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_4x4"
+HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
 ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
 BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
-HEIGHTS_BOOST = 1.0
+HEIGHTS_BOOST = 3
 MATERIALS = False
 
 # Constants
@@ -41,15 +41,22 @@ def main():
     # Parse args
     dir_out_path = sys.argv[1]
     name_out = sys.argv[2]
-    bound_w = float(sys.argv[3])
-    bound_s = float(sys.argv[4])
+    sw_lat = float(sys.argv[3])
+    sw_lng = float(sys.argv[4])
     size_metres = int(sys.argv[5])
     n_splits = int(sys.argv[6])
 
+    # Compute coordinates in ETRS89 UTM 32N
+    transformer = Transformer.from_crs(WGS84, ETRS89_UTM_32N)
+    bound_w, bound_s = transformer.transform(sw_lat, sw_lng)
     bound_e = bound_w + size_metres
     bound_n = bound_s + size_metres
-
     bounds_heights = (bound_w, bound_e, bound_s, bound_n)
+
+    print(f"W: {bound_w}")
+    print(f"E: {bound_e}")
+    print(f"S: {bound_s}")
+    print(f"N: {bound_n}")
 
     # Get heights
     heights, _ = get_contents(HEIGHTS_TIFS_DIR_PATH, bounds_heights)

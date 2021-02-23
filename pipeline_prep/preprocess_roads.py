@@ -1,27 +1,29 @@
 import numpy as np
 import geopandas
 import rasterio
+import rasterio.features
 from shapely.geometry import Polygon
 import os
 import math
-from rasterize import rasterize
-from rectanglify import rectanglify
-import matplotlib.pyplot as plt
+from polygonize import polygonize
+
+# Description
+# Clips, rectanglifies and rasterizes road SPHs
 
 # Args
-FILE_IN_PATH = r"C:\Users\traff\source\repos\PrintCities.Modelling\shps\roads_cph.shp"
-SHP_DIR_OUT_PATH = r"D:\PrintCitiesData\roads_shp"
-TIF_DIR_OUT_PATH = r"D:\PrintCitiesData\roads_tif"
-BOUNDS_W = 700000
-BOUNDS_E = 731000
-BOUNDS_S = 6170000
-BOUNDS_N = 6201000
-BOUNDS_SNAP = 1000
+FILE_IN_PATH = r"D:\PrintCitiesData\roads_shp\roads_cph.shp"
+DIR_OUT_PATH = r"D:\PrintCitiesData\roads_2x2"
+BOUNDS_W = 723000
+BOUNDS_E = 728000
+BOUNDS_S = 6175000
+BOUNDS_N = 6180000
+AGGREG_SIZE = 2
+ALL_TOUCHED = False
 
 # Constants
 ETRS89_UTM32N = 3044
 ORIGINAL_PIXEL_SIZE = 0.4
-AGGREG_SIZE = 4
+BOUNDS_SNAP = 1000
 ORIGINAL_SIZE = 2500
 
 # Derived constants
@@ -52,6 +54,9 @@ def main():
     bounds_s = math.ceil(BOUNDS_S / BOUNDS_SNAP)
     bounds_n = math.floor(BOUNDS_N / BOUNDS_SNAP)
 
+    if not os.path.exists(DIR_OUT_PATH):
+        os.mkdir(DIR_OUT_PATH)
+
     df = geopandas.read_file(FILE_IN_PATH)
 
     for y in range(bounds_s, bounds_n):
@@ -72,23 +77,34 @@ def main():
                 print(f"skipping {file_name}")
                 continue
 
-            # Save shp file
-            file_path_shp = os.path.join(SHP_DIR_OUT_PATH, file_name + ".shp")
-            df_clipped.to_file(file_path_shp)
-
-            # Rectanglify
-            df_clipped = rectanglify(df_clipped, bounds)
+            # Convert to polygons
+            df_clipped = polygonize(df_clipped, bounds)
 
             if len(df_clipped) == 0:
                 print(f"skipping {file_name}")
                 continue
 
-            file_path_shp_rect = os.path.join(SHP_DIR_OUT_PATH, file_name + "_rect.shp")
-            df_clipped.to_file(file_path_shp_rect)
+            # Rasterize 
+            transform = rasterio.transform.from_bounds(
+                west = bounds[0],
+                east = bounds[1],
+                south = bounds[2],
+                north = bounds[3],
+                height = HEIGHT,
+                width = WIDTH
+            )
+            pixels = rasterio.features.rasterize(
+                shapes=df_clipped['geometry'],
+                out_shape=(HEIGHT, WIDTH),
+                fill=0,
+                transform=transform,
+                all_touched=ALL_TOUCHED,
+                default_value=1,
+                dtype=np.float32
+            )
 
-            # Rasterize and save
-            file_path_tif = os.path.join(TIF_DIR_OUT_PATH, file_name + ".tif")
-            pixels, transform = rasterize(df_clipped, bounds, HEIGHT, WIDTH)
+            # Save
+            file_path_tif = os.path.join(DIR_OUT_PATH, file_name + ".tif")
             dataset_out = rasterio.open(
                 file_path_tif,
                 mode='w',

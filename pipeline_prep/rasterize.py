@@ -82,7 +82,6 @@ def main():
     files_in = get_dir_files(dir_in_path)
     for file_name in files_in:
 
-
         # Read file
         file_path = join(dir_in_path, file_name)
         df = geopandas.read_file(file_path)
