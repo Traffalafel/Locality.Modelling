@@ -49,7 +49,7 @@ def gen_monochrome_faces(heights):
 
     return lines
 
-def meshify_layer(heights, materials=None, materials_names=None, mtllib=None):
+def meshify(heights, materials=None, materials_names=None, mtllib=None):
 
     n_rows, n_cols = heights.shape
     n_heights = n_rows*n_cols
@@ -81,3 +81,65 @@ def meshify_layer(heights, materials=None, materials_names=None, mtllib=None):
     lines_out += face_lines
 
     return lines_out
+
+
+# # Top side vertices
+# for col in range(n_cols):
+#     lines_out.append(f"v {0.5*block_size} {(col+0.5)*block_size} 0\n")
+
+# # Top side faces
+# for col in range(n_cols-1):
+#     lines_out.append(f"f {col+1} {col+2} {col+1+n_heights}\n")
+#     lines_out.append(f"f {col+2} {col+1+n_heights} {col+2+n_heights}\n")
+
+# # Bottom side vertices
+# offset_hi = n_heights - n_cols
+# offset_lo = n_cols + n_heights
+# for col in range(n_cols):
+#     lines_out.append(f"v {(n_rows-0.5)*block_size} {(col+0.5)*block_size} 0\n")
+
+# # Bottom side faces
+# offset_hi = n_heights - n_cols
+# offset_lo = n_cols + n_heights
+# for col in range(n_cols-1):
+#     top = col+offset_hi
+#     bot = col+offset_lo
+#     lines_out.append(f"f {top+1} {top+2} {bot+1}\n")
+#     lines_out.append(f"f {top+2} {bot+1} {bot+2}\n")
+
+# # Left side vertices
+# offset_hi = 1
+# offset_lo = n_heights + n_cols * 2
+# for row in range(n_rows):
+#     lines_out.append(f"v {(row+0.5)*block_size} {0.5*block_size} 0\n")
+
+# # Left side faces
+# offset_hi = 1
+# offset_lo = n_heights + n_cols * 2
+# for row in range(n_rows-1):
+#     lines_out.append(f"f {offset_hi} {offset_hi+n_cols} {row+offset_lo+1}\n")
+#     lines_out.append(f"f {offset_hi+n_cols} {row+offset_lo+1} {row+offset_lo+2}\n")
+#     offset_hi += n_cols
+
+# # Right side vertices
+# offset_hi = n_cols
+# offset_lo = n_heights + n_cols * 2 + n_rows
+# for row in range(n_rows):
+#     lines_out.append(f"v {(row+0.5)*block_size} {(n_cols-0.5)*block_size} 0\n")
+
+# # Right side faces
+# offset_hi = n_cols
+# offset_lo = n_heights + n_cols * 2 + n_rows
+# for row in range(n_rows-1):
+#     lines_out.append(f"f {offset_hi} {offset_hi+n_cols} {row+offset_lo+1}\n")
+#     lines_out.append(f"f {offset_hi+n_cols} {row+offset_lo+1} {row+offset_lo+2}\n")
+#     offset_hi += n_cols
+
+# # Add bottom square
+# offset_bottom = n_heights + n_rows*2 + n_cols*2
+# lines_out.append(f"v {0.5*block_size} {0.5*block_size} 0\n")
+# lines_out.append(f"v {0.5*block_size} {(n_cols-0.5)*block_size} 0\n")
+# lines_out.append(f"v {(n_rows-0.5)*block_size} {0.5*block_size} 0\n")
+# lines_out.append(f"v {(n_rows-0.5)*block_size} {(n_cols-0.5)*block_size} 0\n")
+# lines_out.append(f"f {offset_bottom+2} {offset_bottom+3} {offset_bottom+1}\n")
+# lines_out.append(f"f {offset_bottom+4} {offset_bottom+3} {offset_bottom+2}\n")

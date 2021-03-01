@@ -11,7 +11,8 @@ MIN_DEPTH = 30
 MTLLIB = r".\materials.mtl"
 
 # Sources
-HEIGHTS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade"
+DTM_DIR_PATH = r"D:\PrintCitiesData\DTM\DTM_2x2"
+SUB_DIR_PATH = r"D:\PrintCitiesData\SUB\SUB_2x2"
 MATERIALS_DIRS_PATHS = [
     # r"D:\PrintCitiesData\roads_tif"
 ]
@@ -23,7 +24,7 @@ PIXEL_SIZE = ORIGINAL_PIXEL_SIZE * AGGREG_SIZE
 WGS84 = 4326
 ETRS89_UTM_32N = 25832
 
-def generate_layer(file_name, dir_out_path, n_splits):
+def generate_mesh(file_name, n_splits):
 
     # Compute input files paths
     heights_file_path = os.path.join(HEIGHTS_DIR_PATH, file_name)
@@ -90,7 +91,7 @@ def generate_layer(file_name, dir_out_path, n_splits):
         break
             
 def main():
-    generate_layer(
+    generate_mesh(
         "700_6171.tif", 
         r"C:\Users\traff\source\repos\PrintCities.Modelling\data\models",
         n_splits=4

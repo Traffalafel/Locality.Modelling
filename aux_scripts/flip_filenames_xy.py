@@ -14,8 +14,7 @@ def main():
     dir_path = sys.argv[1]
     files = get_dir_files(dir_path)
 
-    pattern = re.compile(r"^DTM_1km_(\d+)_(\d+)\.tif$")
-
+    pattern = re.compile(r"^\S+_(\d+)_(\d+)\.tif$")
 
     for file in files:
 
