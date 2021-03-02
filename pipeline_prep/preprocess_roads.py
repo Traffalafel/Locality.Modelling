@@ -2,100 +2,78 @@ import numpy as np
 import geopandas
 import rasterio
 import rasterio.features
-from shapely.geometry import Polygon
 import os
 import math
 from polygonize import polygonize
 
-# Description
-# Clips, rectanglifies and rasterizes road SPHs
-
 # Args
-FILE_IN_PATH = r"D:\PrintCitiesData\roads_shp\roads_cph.shp"
-DIR_OUT_PATH = r"D:\PrintCitiesData\roads_2x2"
-BOUNDS_W = 723000
-BOUNDS_E = 728000
-BOUNDS_S = 6175000
-BOUNDS_N = 6180000
-AGGREG_SIZE = 2
+DIR_IN_PATH = r"D:\PrintCitiesData\shp\roads"
+DIR_OUT_PATH = r"D:\PrintCitiesData\masks\roads"
 ALL_TOUCHED = False
+OFFSET_HALF = True
 
 # Constants
-ETRS89_UTM32N = 3044
-ORIGINAL_PIXEL_SIZE = 0.4
-BOUNDS_SNAP = 1000
-ORIGINAL_SIZE = 2500
+TILE_SIZE = 1000
+PIXEL_SIZE = 0.4 
+N_PIXELS = int(TILE_SIZE / PIXEL_SIZE)
 
-# Derived constants
-PIXEL_SIZE = ORIGINAL_PIXEL_SIZE * AGGREG_SIZE
-HEIGHT = int(ORIGINAL_SIZE / AGGREG_SIZE)
-WIDTH = int(ORIGINAL_SIZE / AGGREG_SIZE)
+def get_file_bounds(file_name):
+    file_name = file_name.split('.')[0]
+    min_x = int(file_name.split('_')[0]) * TILE_SIZE
+    max_x = min_x + TILE_SIZE
+    min_y = int(file_name.split('_')[1]) * TILE_SIZE
+    max_y = min_y + TILE_SIZE
+    return (min_x, max_x, min_y, max_y)
 
-def clip(dataframe, bounds):
-    
-    dataframe = dataframe.to_crs(ETRS89_UTM32N)
+def get_dir_files(dir_path):
+    contents = os.listdir(dir_path)
+    files = [c for c in contents if os.path.isfile(os.path.join(dir_path, c))]
+    files_shp = [f for f in files if f.split(".")[1] == "shp"]
+    return files_shp
 
-    bounds_w, bounds_e, bounds_s, bounds_n = bounds
-    polygon = Polygon([
-        (bounds_w, bounds_s),
-        (bounds_w, bounds_n),
-        (bounds_e, bounds_n),
-        (bounds_e, bounds_s)
-    ])
-    poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=dataframe.crs)
-
-    return geopandas.clip(dataframe, poly_gdf)
-    
 def main():
-
-    # Compute bounds
-    bounds_w = math.ceil(BOUNDS_W / BOUNDS_SNAP)
-    bounds_e = math.floor(BOUNDS_E / BOUNDS_SNAP)
-    bounds_s = math.ceil(BOUNDS_S / BOUNDS_SNAP)
-    bounds_n = math.floor(BOUNDS_N / BOUNDS_SNAP)
 
     if not os.path.exists(DIR_OUT_PATH):
         os.mkdir(DIR_OUT_PATH)
 
-    df = geopandas.read_file(FILE_IN_PATH)
+    # Compute bounds
+    files = get_dir_files(DIR_IN_PATH)
 
-    for y in range(bounds_s, bounds_n):
-        for x in range(bounds_w, bounds_e):
+    for file_name in files:
 
-            # Define bounds and clip
-            bounds = (
-                x*BOUNDS_SNAP + (PIXEL_SIZE/2),
-                (x+1)*BOUNDS_SNAP + (PIXEL_SIZE/2),
-                y*BOUNDS_SNAP + (PIXEL_SIZE/2),
-                (y+1)*BOUNDS_SNAP + (PIXEL_SIZE/2)
-            )
-            df_clipped = clip(df, bounds)
+        file_name = file_name.split(".")[0]
+        file_path = os.path.join(DIR_IN_PATH, file_name + ".shp")
+        df = geopandas.read_file(file_path)
 
-            file_name = f"roads_{y}_{x}"
+        # Convert to polygons
+        bounds = get_file_bounds(file_name)
+        df = polygonize(df, bounds)
 
-            if len(df_clipped) == 0:
-                print(f"skipping {file_name}")
-                continue
+        if len(df) == 0:
+            print(f"skipping {file_name}")
+            continue
 
-            # Convert to polygons
-            df_clipped = polygonize(df_clipped, bounds)
+        if OFFSET_HALF:
+            offset = PIXEL_SIZE / 2
+        else:
+            offset = 0
 
-            if len(df_clipped) == 0:
-                print(f"skipping {file_name}")
-                continue
+        for resolution in [1,2,4]:
 
-            # Rasterize 
+            shape = N_PIXELS // resolution - 1
+
+            # Rasterize
             transform = rasterio.transform.from_bounds(
-                west = bounds[0],
-                east = bounds[1],
-                south = bounds[2],
-                north = bounds[3],
-                height = HEIGHT,
-                width = WIDTH
+                west = bounds[0] + offset * resolution,
+                east = bounds[1] - offset * resolution,
+                south = bounds[2] + offset * resolution,
+                north = bounds[3] - offset * resolution,
+                height = shape,
+                width = shape
             )
             pixels = rasterio.features.rasterize(
-                shapes=df_clipped['geometry'],
-                out_shape=(HEIGHT, WIDTH),
+                shapes=df['geometry'],
+                out_shape=(shape, shape),
                 fill=0,
                 transform=transform,
                 all_touched=ALL_TOUCHED,
@@ -103,21 +81,28 @@ def main():
                 dtype=np.float32
             )
 
+            print(f"resolution: {resolution}")
+            print(f"shape: {pixels.shape}")
+
             # Save
-            file_path_tif = os.path.join(DIR_OUT_PATH, file_name + ".tif")
+            file = f"{file_name}.tif"
+            resolution_string = f"{resolution}x{resolution}"
+            file_path_tif = os.path.join(DIR_OUT_PATH, resolution_string, file)
             dataset_out = rasterio.open(
                 file_path_tif,
                 mode='w',
                 driver='GTiff',
-                height=HEIGHT,
-                width=WIDTH,
+                height=shape,
+                width=shape,
                 count=1,
-                crs=df_clipped.crs,
+                crs=df.crs,
                 transform=transform,
                 dtype=np.float32
             )
             dataset_out.write(pixels, 1)
 
-            print(f"saved {file_name}")
+        print(f"saved {file_name}")
+
+        break
 
 main()

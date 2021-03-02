@@ -1,58 +1,33 @@
 import numpy as np
 import geopandas
 import rasterio
-from shapely.geometry import Polygon
 import os
 import sys
 import math
+from clip import clip
 
 # Args
 TILE_SIZE = 1000
-OFFSET_HALF = True
-# BOUNDS_W = 700000
-# BOUNDS_E = 730000
-# BOUNDS_S = 6170000
-# BOUNDS_N = 6200000
+OFFSET_HALF = False
+BOUNDS_W = 723000
+BOUNDS_E = 728000
+BOUNDS_S = 6175000
+BOUNDS_N = 6180000
 
 # Constants
 ETRS89_UTM32N = 3044
-ORIGINAL_PIXEL_SIZE = 0.4
-AGGREG_SIZE = 4
-ORIGINAL_SIZE = 2500
+CLIP_MARGIN = 2 # add 2 metres to clipping bounds
 
-# Derived constants
-PIXEL_SIZE = ORIGINAL_PIXEL_SIZE * AGGREG_SIZE
-HEIGHT = int(ORIGINAL_SIZE / AGGREG_SIZE)
-WIDTH = int(ORIGINAL_SIZE / AGGREG_SIZE)
-
-def clip(dataframe, bounds):
-    
-    bounds_w, bounds_e, bounds_s, bounds_n = bounds
-    polygon = Polygon([
-        (bounds_w, bounds_s),
-        (bounds_w, bounds_n),
-        (bounds_e, bounds_n),
-        (bounds_e, bounds_s)
-    ])
-    poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=dataframe.crs)
-
-    df_out = geopandas.clip(dataframe, poly_gdf)
-
-    # Filter out non-polygon rows
-    df_out = df_out[df_out['geometry'].apply(lambda x: x.type == "Polygon")]
-
-    return df_out
-    
 def main():
 
     # Parse arguments
     file_in_path = sys.argv[1]
     dir_out_path = sys.argv[2]
     
-    bounds_w = int(sys.argv[3])
-    bounds_e = int(sys.argv[4])
-    bounds_s = int(sys.argv[5])
-    bounds_n = int(sys.argv[6])
+    bounds_w = BOUNDS_W
+    bounds_e = BOUNDS_E
+    bounds_s = BOUNDS_S
+    bounds_n = BOUNDS_N
     
     print("Loading shapefile")
     df = geopandas.read_file(file_in_path)
@@ -71,7 +46,6 @@ def main():
     else:
         offset = 0
 
-
     print("Converting to ETRS89 UTM 32N")
     df = df.to_crs(ETRS89_UTM32N)
 
@@ -82,10 +56,10 @@ def main():
             
             # Define bounds and clip
             bounds = (
-                x*TILE_SIZE + offset,
-                (x+1)*TILE_SIZE + offset,
-                y*TILE_SIZE + offset,
-                (y+1)*TILE_SIZE + offset
+                x*TILE_SIZE + offset - CLIP_MARGIN,
+                (x+1)*TILE_SIZE + offset + CLIP_MARGIN,
+                y*TILE_SIZE + offset - CLIP_MARGIN,
+                (y+1)*TILE_SIZE + offset + CLIP_MARGIN
             )
             df_tile = clip(df, bounds)
 

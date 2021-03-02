@@ -1,6 +1,6 @@
 import os
 import rasterio
-from meshify_layer import meshify_layer
+from meshify import meshify, mesh_to_obj
 import numpy as np
 
 # ARGS
@@ -10,91 +10,85 @@ HEIGHTS_BOOST = 3
 MIN_DEPTH = 30
 MTLLIB = r".\materials.mtl"
 
-# Sources
-DTM_DIR_PATH = r"D:\PrintCitiesData\DTM\DTM_2x2"
-SUB_DIR_PATH = r"D:\PrintCitiesData\SUB\SUB_2x2"
-MATERIALS_DIRS_PATHS = [
-    # r"D:\PrintCitiesData\roads_tif"
-]
+# Heights
+HEIGHTS_TERRAIN_DIR = r"D:\PrintCitiesData\heights\terrain\2x2"
+HEIGHTS_BUILDINGS_DIR = r"D:\PrintCitiesData\heights\buildings\2x2"
+
+# Masks
+MASKS_ROADS_DIR = r"D:\PrintCitiesData\masks\roads\2x2"
+# MASKS_WATER_DIR = r""
+# MASKS_GRASS_DIR = r""
 
 # Constants
-AGGREG_SIZE = 4
-ORIGINAL_PIXEL_SIZE = 0.4
-PIXEL_SIZE = ORIGINAL_PIXEL_SIZE * AGGREG_SIZE
+TILE_SIZE = 1000
+PIXEL_SIZE = 0.4
+N_PIXELS = TILE_SIZE / PIXEL_SIZE
 WGS84 = 4326
 ETRS89_UTM_32N = 25832
 
-def generate_mesh(file_name, n_splits):
+def generate_mesh(file_name, dir_out):
 
-    # Compute input files paths
-    heights_file_path = os.path.join(HEIGHTS_DIR_PATH, file_name)
-    materials_files_paths = [os.path.join(mat_dir, file_name) for mat_dir in MATERIALS_DIRS_PATHS]
+    file_name = file_name + ".tif"
 
-    # Read heights
-    dataset = rasterio.open(heights_file_path)
-    heights = dataset.read(1)
+    # Terrain heights
+    terrain_file_path = os.path.join(HEIGHTS_TERRAIN_DIR, file_name)
+    dataset_terrain = rasterio.open(terrain_file_path)
+    heights_terrain = dataset_terrain.read(1)
+    
+    # Building heights
+    buildings_file_path = os.path.join(HEIGHTS_BUILDINGS_DIR, file_name)
+    dataset_buildings = rasterio.open(buildings_file_path)
+    heights_buildings = dataset_buildings.read(1)
+    not_building_idxs = heights_buildings <= 0
+    heights_buildings += heights_terrain
+    heights_buildings[not_building_idxs] = -1
 
-    # Read materials
-    if USE_MATERIALS:
-        datasets_materials = [rasterio.open(path) for path in materials_files_paths]
-        materials = [ds.read(1) for ds in datasets_materials]
+    # Road masks
+    roads_file_path = os.path.join(MASKS_ROADS_DIR, file_name)
+    dataset_roads = rasterio.open(roads_file_path)
+    mask_roads = dataset_roads.read(1)
 
-    n_rows, n_cols = heights.shape
-    len_row = int(n_rows // n_splits)
-    len_col = int(n_cols // n_splits)
+    materials = set()
+    materials.add(0)
+    materials.add(1)
 
-    for i in range(n_splits):
-        for j in range(n_splits):
+    vertices_terrain, faces_terrain = meshify(
+        heights_terrain,
+        mask_roads,
+        materials
+    )
 
-            # Compute indices
-            min_x = i * len_row
-            max_x = (i+1) * len_row
-            min_y = j * len_col
-            max_y = (j+1) * len_col
-            
-            # Get tile data
-            heights_tile = heights[min_x:max_x,min_y:max_y]
-            if USE_MATERIALS:
-                materials_tile = np.zeros(shape=(len_row-1, len_col-1), dtype=np.int32)
-                mats = [mat[min_x:max_x-1,min_y:max_y-1] for mat in materials]
-                materials_name = dict()
-                materials_name[0] = "0"
-                for mat_idx, mat in enumerate(mats):
-                    materials_tile[mat == 1] = mat_idx + 1
-                    materials_name[mat_idx+1] = str(mat_idx+1)
-            else:
-                materials_tile = None
-                materials_name = None
+    vertices_buildings, faces_buildings = meshify(
+        heights_buildings,
+        None,
+        None
+    )
 
-            # REMOVE
-            heights[200:300,200:300] = -1
-            # REMOVE
-            
-            # Create mesh
-            mesh_lines = meshify_layer(
-                heights_tile,
-                None, 
-                None,
-                None
-                # materials_tile,
-                # materials_name,
-                # MTLLIB
-            )
-            
-            # Save
-            file_out_name = f"{i}_{j}.obj"
-            file_out_path = os.path.join(dir_out_path, file_out_name)
-            with open(file_out_path, 'w+') as fd:
-                fd.writelines(mesh_lines)
+    lines_buildings = mesh_to_obj(vertices_buildings[0], faces_buildings[0], "building", MTLLIB)
+    lines_terrain = mesh_to_obj(vertices_terrain[0], faces_terrain[0], "terrain", MTLLIB)
+    lines_roads = mesh_to_obj(vertices_terrain[1], faces_terrain[1], "road", MTLLIB)
 
-            break
-        break
-            
+    file_buildings_out = file_name + "_building.obj"
+    file_out_path = os.path.join(dir_out, file_buildings_out)
+    with open(file_out_path, 'w+') as fd:
+        fd.writelines(lines_buildings)
+
+    file_terrain_out = file_name + "_terrain.obj"
+    file_out_path = os.path.join(dir_out, file_terrain_out)
+    with open(file_out_path, 'w+') as fd:
+        fd.writelines(lines_terrain)
+    
+    file_roads_out = file_name + "_road.obj"
+    file_out_path = os.path.join(dir_out, file_roads_out)
+    with open(file_out_path, 'w+') as fd:
+        fd.writelines(lines_roads)
+
 def main():
+    file_name = r"723_6175"
+    dir_out = r"C:\Users\traff\source\repos\PrintCities.Modelling\data\models"
     generate_mesh(
-        "700_6171.tif", 
-        r"C:\Users\traff\source\repos\PrintCities.Modelling\data\models",
-        n_splits=4
+        file_name,
+        dir_out
     )
 
 main()

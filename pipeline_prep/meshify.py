@@ -1,87 +1,89 @@
-def gen_materials_faces(materials):
+import numpy as np
 
-    materials_faces = dict()
-
-    n_rows = len(materials)
-    n_cols = len(materials[0])
-
-    for row in range(n_rows):
-        for col in range(n_cols):
-            material = materials[row][col]
-            if material in materials_faces:
-                materials_faces[material].append((row,col))
-            else:
-                materials_faces[material] = [(row,col)]
+def extract_material(vertices, faces):
     
-    return materials_faces
+    # Find which vertices to keep
+    vertices_keep = set()
+    for face in faces:
+        for v in face:
+            vertices_keep.add(v)
 
-def gen_color_faces(heights, materials_faces, materials_names):
-    n_rows, n_cols = heights.shape
-    lines = []
-    for material in materials_faces:
-        material_name = materials_names[material]
-        lines.append(f"usemtl {material_name}\n")
-        for (row, col) in materials_faces[material]:
+    # Give new indices to vertices to keep
+    new_idx = 0
+    vertices_new_idxs = dict()
+    vertices_new = []
+    for old_idx, v in enumerate(vertices):
+        if old_idx in vertices_keep:
+            vertices_new.append(v)
+            vertices_new_idxs[old_idx] = new_idx
+            new_idx += 1
 
-            heights_corners = [heights[row+i][col+j] for i in range(2) for j in range(2)]
-            if any(h == -1 for h in heights_corners):
-                continue
+    # Set these new vertices in faces
+    faces_new = []
+    for face in faces:
+        face_new = [vertices_new_idxs[v] for v in face]
+        faces_new.append(face_new)
 
-            offset = 1 + (row * n_cols) + col
-            lines.append(f"f {offset} {offset+n_cols} {offset+1}\n")
-            lines.append(f"f {offset+1} {offset+n_cols} {offset+n_cols+1}\n")
-            
-    return lines
+    return vertices_new, faces_new
 
-def gen_monochrome_faces(heights):
-    n_rows, n_cols = heights.shape
-    lines = []
-    for row in range(n_rows - 1):
-        for col in range(n_cols - 1):
-
-            heights_corners = [heights[row+i][col+j] for i in range(2) for j in range(2)]
-            if any(h == -1 for h in heights_corners):
-                continue
-            
-            offset = 1 + (row * n_cols) + col
-            lines.append(f"f {offset} {offset+n_cols} {offset+1}\n")
-            lines.append(f"f {offset+1} {offset+n_cols} {offset+n_cols+1}\n")
-
-    return lines
-
-def meshify(heights, materials=None, materials_names=None, mtllib=None):
+def meshify(heights, mapping=None, materials=None):
 
     n_rows, n_cols = heights.shape
     n_heights = n_rows*n_cols
 
-    print(f"CREATING MESH")
-    print(f"n_rows: {n_rows}")
-    print(f"n_cols: {n_cols}")
-    print(f"n_heights: {n_heights}")
+    if mapping is None:
+        shape = (heights.shape[0]-1, heights.shape[1]-1)
+        mapping = np.zeros(shape)
+        materials = set()
+        materials.add(0)
 
-    lines_out = []
-
-    if mtllib is not None:
-        lines_out.append(f"mtllib {mtllib}\n")
-
-    # Grid vertices
+    # Vertices
+    vertices_global = []
     for row in range(n_rows):
         for col in range(n_cols):
             height = heights[row][col]
-            if height is -1:
+            vertices_global.append([row+0.5, col+0.5, height])
+
+    print(materials)
+
+    # Faces
+    vertices = dict()
+    faces = dict()
+    for material in materials:
+        faces[material] = []
+        idxs = np.argwhere(mapping == material)
+        for row, col in idxs:
+            
+            heights_corners = [heights[row+i][col+j] for i in range(2) for j in range(2)]
+            if all(h == -1 for h in heights_corners):
                 continue
-            lines_out.append(f"v {row+0.5} {col+0.5} {height}\n")
 
-    # Grid faces
-    if materials is not None:
-        materials_faces = gen_materials_faces(materials)
-        face_lines = gen_color_faces(heights, materials_faces, materials_names)
-    else:
-        face_lines = gen_monochrome_faces(heights)
-    lines_out += face_lines
+            offset = (row * n_cols) + col
+            max_idx = heights_corners.index(max(heights_corners))
+            if max_idx == 0 or max_idx == 3:
+                # max is NW or SE
+                faces[material].append([offset, offset+n_cols, offset+1])
+                faces[material].append([offset+1, offset+n_cols, offset+n_cols+1])
+            else:
+                # max is SW or NE
+                faces[material].append([offset, offset+n_cols, offset+n_cols+1])
+                faces[material].append([offset, offset+n_cols+1, offset+1])
 
-    return lines_out
+        vertices_mat, faces_mat = extract_material(vertices_global, faces[material])
+        faces[material] = faces_mat
+        vertices[material] = vertices_mat
+        
+    return vertices, faces    
 
+def mesh_to_obj(vertices, faces, material_name, mtllib):
+    lines = []
+    lines.append(f"mtllib {mtllib}\n")
+    for v in vertices:
+        lines.append(f"v {v[0]} {v[1]} {v[2]}\n")
+    lines.append(f"newmtl {material_name}\n")
+    for f in faces:
+        lines.append(f"f {f[0]+1} {f[1]+1} {f[2]+1}\n")
+    return lines
 
 # # Top side vertices
 # for col in range(n_cols):
