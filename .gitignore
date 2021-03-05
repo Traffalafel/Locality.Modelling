@@ -6,11 +6,9 @@
 *.prj
 *.bin
 *.shp
+*.las
+*.laz
 
-shps/
-bins/
-models/
-ascs/
-tifs/
+data/
 .vscode/
 __pycache__/

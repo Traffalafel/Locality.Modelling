@@ -39,7 +39,7 @@ def generate_mesh(file_name, dir_out):
     buildings_file_path = os.path.join(HEIGHTS_BUILDINGS_DIR, file_name)
     dataset_buildings = rasterio.open(buildings_file_path)
     heights_buildings = dataset_buildings.read(1)
-    not_building_idxs = heights_buildings <= 0
+    not_building_idxs = heights_buildings == -1
     heights_buildings += heights_terrain
     heights_buildings[not_building_idxs] = -1
 
