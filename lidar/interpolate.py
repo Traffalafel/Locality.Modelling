@@ -4,7 +4,11 @@ def interpolate_points(start, end, count):
     slope = (end - start) / count
     return [start+slope*i for i in range(count)]
 
-def interpolate_x(buildings, ground, limit):
+def interpolate(buildings, ground):
+    interpolate_x(buildings, ground)
+    interpolate_y(buildings, ground)
+
+def interpolate_x(buildings, ground):
 
     n_rows, n_cols = buildings.shape
 
@@ -46,10 +50,7 @@ def interpolate_x(buildings, ground, limit):
             # Not building nor ground
             interpolate_count += 1
 
-            if interpolate_count > limit:
-                interpolate = False
-
-def interpolate_y(buildings, ground, limit):
+def interpolate_y(buildings, ground):
 
     n_rows, n_cols = buildings.shape
 
@@ -90,25 +91,3 @@ def interpolate_y(buildings, ground, limit):
 
             # Not building nor ground
             interpolate_count += 1
-
-            if interpolate_count > limit:
-                interpolate = False
-
-# def main():
-    
-#     buildings = np.array([
-#         [-1, 100, 2],
-#         [-1, 1, 100],
-#         [-1, 1, 2],
-#     ], dtype=np.float32)
-#     ground = np.array([
-#         [-1, -1, -1],
-#         [-1, -1, -1],
-#         [1, -1, -1],
-#     ], dtype=np.float32)
-
-#     interpolate_x(buildings, ground)
-
-#     print(buildings)
-
-# main()

@@ -14,8 +14,6 @@ TREES_DIR = r"D:\PrintCitiesData\heights\trees"
 # Args
 AGGREG_METHOD = "max"
 GAUSSIAN_SIZE = 3
-BUILDINGS_THRESHOLD = 1
-TREES_THRESHOLD = 1
 
 def get_dir_files(dir_path):
     contents = os.listdir(dir_path)
@@ -51,32 +49,15 @@ def main():
         # Clean DTM
         heights_dtm = cv.GaussianBlur(heights_dtm, (GAUSSIAN_SIZE,GAUSSIAN_SIZE), 0)
 
-        # Get buildings
-        buildings_file_in_path = os.path.join(BUILDINGS_DIR, "raw", file_name)
-        dataset_buildings = rasterio.open(buildings_file_in_path)
-        heights_buildings = dataset_buildings.read(1)
-
-        # Clean buildings
-        heights_buildings = cv.GaussianBlur(heights_buildings, (GAUSSIAN_SIZE,GAUSSIAN_SIZE), 0)
-
         # Save terrain 1x1
         file_path_out = os.path.join(TERRAIN_DIR, "1x1", file_name)
         save(heights_dtm, dataset_dtm.transform, file_path_out, dataset_dtm.crs)
         
-        # Save buildings 1x1
-        file_path_out = os.path.join(BUILDINGS_DIR, "1x1", file_name)
-        save(heights_buildings, dataset_dtm.transform, file_path_out, dataset_dtm.crs)
-
         # Aggregate and save terrain 2x2
         heights_dtm_2x2, transform_2x2 = aggregate(heights_dtm, dataset_dtm.bounds, 2, AGGREG_METHOD)
         file_path_out = os.path.join(TERRAIN_DIR, "2x2", file_name)
         save(heights_dtm_2x2, transform_2x2, file_path_out, dataset_dtm.crs)
         
-        # Aggregate and save buildings 2x2
-        heights_buildings_2x2, transform_2x2 = aggregate(heights_buildings, dataset_dtm.bounds, 2, AGGREG_METHOD)
-        file_path_out = os.path.join(BUILDINGS_DIR, "2x2", file_name)
-        save(heights_buildings_2x2, transform_2x2, file_path_out, dataset_dtm.crs)
-
         print(f"saved {file_name}")
 
         break

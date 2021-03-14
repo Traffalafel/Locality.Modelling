@@ -26,6 +26,18 @@ def extract_material(vertices, faces):
 
     return vertices_new, faces_new
 
+def meshify_terrain(heights, roads_mask, green_mask, water_mask):
+    pass
+
+def meshify_elevation(heights, heights_terrain):
+    
+    # S-N lines
+    # W-E lines
+    # SW-NE lines
+    # NW-SE lines
+    
+    pass
+
 def meshify(heights, mapping=None, materials=None):
 
     n_rows, n_cols = heights.shape
@@ -44,8 +56,6 @@ def meshify(heights, mapping=None, materials=None):
             height = heights[row][col]
             vertices_global.append([row+0.5, col+0.5, height])
 
-    print(materials)
-
     # Faces
     vertices = dict()
     faces = dict()
@@ -55,7 +65,7 @@ def meshify(heights, mapping=None, materials=None):
         for row, col in idxs:
             
             heights_corners = [heights[row+i][col+j] for i in range(2) for j in range(2)]
-            if all(h == -1 for h in heights_corners):
+            if any(h == -1 for h in heights_corners):
                 continue
 
             offset = (row * n_cols) + col

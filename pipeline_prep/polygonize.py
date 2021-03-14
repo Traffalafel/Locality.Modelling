@@ -122,17 +122,4 @@ def polygonize(df, bounds):
         df_out.loc[len(df_out) + idx] = row
 
     return df_out
-
-    # # Clip new shapes to the original bound
-    # bounds_polygon = Polygon([
-    #     (x_min, y_min),
-    #     (x_min, y_max),
-    #     (x_max, y_max),
-    #     (x_max, y_min)
-    # ])
-    # bounds_df = geopandas.GeoDataFrame([1], geometry=[bounds_polygon], crs=df.crs)
-
-    # df_out = geopandas.clip(df_out, bounds_df)
-
-    # return df_out
-    
+  
