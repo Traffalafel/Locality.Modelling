@@ -53,6 +53,16 @@ def generate_DEM(file_path_in, dir_out):
     print("Generating trees")
     heights_trees = create_heights(file_path_in, CLASSES_TREES, 1, PIXEL_SIZE, dem_size)
 
+    # Rotate buildings
+    heights_buildings = np.transpose(heights_buildings)
+    heights_buildings = np.flip(heights_buildings, axis=0)
+
+    # Rotate trees
+    heights_trees = np.transpose(heights_trees)
+    heights_trees = np.flip(heights_trees, axis=0)
+
+    print("Saving")
+
     file_name = get_file_name(file_path_in)
     bounds = get_file_bounds(file_name)
     transform = rasterio.transform.from_bounds(

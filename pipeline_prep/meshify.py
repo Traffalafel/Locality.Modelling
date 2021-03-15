@@ -1,4 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import pymeshlab
+
+PIXEL_SIZE = 0.4
 
 def extract_material(vertices, faces):
     
@@ -29,14 +33,200 @@ def extract_material(vertices, faces):
 def meshify_terrain(heights, roads_mask, green_mask, water_mask):
     pass
 
+def generate_vertices(heights):
+    n_rows, n_cols = heights.shape
+    xs = np.arange(n_cols)
+    ys = np.arange(n_rows)
+    xx, yy = np.meshgrid(xs, ys)
+    xx = xx.reshape((n_rows, n_cols, -1))
+    yy = yy.reshape((n_rows, n_cols, -1))
+    vertices = np.append(xx, yy, axis=2)
+    vertices = vertices.reshape((-1, 2))
+    vertices = vertices.astype(np.float32) * PIXEL_SIZE
+    vertices = np.append(vertices, heights.reshape(-1, 1), axis=1)
+    return vertices
+
 def meshify_elevation(heights, heights_terrain):
+
+    # Vertices
+    vertices = generate_vertices(heights)
+    vertices_terrain = generate_vertices(heights_terrain)
+    vertices = np.append(vertices, vertices_terrain, axis=0)
+
+    n_rows, n_cols = heights.shape
+    dem_size = n_rows * n_cols
+
+    # Compute corners
+    nw = heights[:n_rows-1,:n_cols-1] != -1
+    sw = heights[1:,:n_cols-1] != -1
+    ne = heights[:n_rows-1,1:] != -1
+    se = heights[1:,1:] != -1
+
+    idxs = np.arange((n_rows-1) * (n_cols-1))
+    idxs = idxs.reshape((n_rows-1, n_cols-1))
+    offsets = np.arange(n_rows-1).reshape((-1, 1))
+    offsets = np.tile(offsets, n_cols-1)
+    idxs = idxs + offsets
     
-    # S-N lines
-    # W-E lines
-    # SW-NE lines
-    # NW-SE lines
+    faces = np.empty((0,3), dtype=np.int32)
+
+    top_left_idxs = np.array([3, 1, 0])
+    bot_right_idxs = np.array([3, 2, 1])
+
+    # Grid facing up
+    grid_up = np.logical_and(nw, sw)
+    grid_up = np.logical_and(grid_up, ne)
+    grid_up = np.logical_and(grid_up, se)
+    grid_up_faces = idxs[grid_up]
+    grid_up_faces = grid_up_faces.reshape(-1, 1)
+    grid_up_faces = np.tile(grid_up_faces, 4)
+    grid_up_faces[:,1] += n_cols
+    grid_up_faces[:,2] += n_cols + 1
+    grid_up_faces[:,3] += 1
+    faces = np.append(faces, grid_up_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, grid_up_faces[:,bot_right_idxs], axis=0)
+
+    # Grid facing down
+    grid_down_faces = idxs[grid_up].reshape(-1, 1)
+    grid_down_faces += dem_size
+    grid_down_faces = np.tile(grid_down_faces, 4)
+    grid_down_faces[:,1] += 1
+    grid_down_faces[:,2] += n_cols + 1
+    grid_down_faces[:,3] += n_cols
+    faces = np.append(faces, grid_down_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, grid_down_faces[:,bot_right_idxs], axis=0)
+
+    # horizontal lines facing south
+    horizontal_s = np.logical_and(nw, ne)
+    horizontal_s = np.logical_and(horizontal_s, np.logical_not(sw))
+    horizontal_s = np.logical_and(horizontal_s, np.logical_not(se))
+    horizontal_s_faces = idxs[horizontal_s].reshape(-1, 1)
+    horizontal_s_faces = np.tile(horizontal_s_faces, 4)
+    horizontal_s_faces[:,1] += dem_size
+    horizontal_s_faces[:,2] += dem_size + 1
+    horizontal_s_faces[:,3] += 1
+    faces = np.append(faces, horizontal_s_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, horizontal_s_faces[:,bot_right_idxs], axis=0)
+
+    # horizontal lines facing north
+    horizontal_n = np.logical_and(sw, se)
+    horizontal_n = np.logical_and(horizontal_n, np.logical_not(nw))
+    horizontal_n = np.logical_and(horizontal_n, np.logical_not(ne))
+    horizontal_n_faces = idxs[horizontal_n].reshape(-1, 1)
+    horizontal_n_faces += n_cols
+    horizontal_n_faces = np.tile(horizontal_n_faces, 4)
+    horizontal_n_faces[:,1] += 1
+    horizontal_n_faces[:,2] += dem_size + 1
+    horizontal_n_faces[:,3] += dem_size
+    faces = np.append(faces, horizontal_n_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, horizontal_n_faces[:,bot_right_idxs], axis=0)
+
+    # vertical lines facing east
+    vertical_e = np.logical_and(nw, sw)
+    vertical_e = np.logical_and(vertical_e, np.logical_not(ne))
+    vertical_e = np.logical_and(vertical_e, np.logical_not(se))
+    vertical_e_faces = idxs[vertical_e].reshape(-1, 1)
+    vertical_e_faces = np.tile(vertical_e_faces, 4)
+    vertical_e_faces[:,1] += n_cols
+    vertical_e_faces[:,2] += dem_size + n_cols
+    vertical_e_faces[:,3] += dem_size
+    faces = np.append(faces, vertical_e_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, vertical_e_faces[:,bot_right_idxs], axis=0)
     
-    pass
+    # vertical lines facing west
+    vertical_w = np.logical_and(ne, se)
+    vertical_w = np.logical_and(vertical_w, np.logical_not(nw))
+    vertical_w = np.logical_and(vertical_w, np.logical_not(sw))
+    vertical_w_faces = idxs[vertical_w].reshape(-1, 1)
+    vertical_w_faces += 1
+    vertical_w_faces = np.tile(vertical_w_faces, 4)
+    vertical_w_faces[:,1] += dem_size
+    vertical_w_faces[:,2] += dem_size + n_cols
+    vertical_w_faces[:,3] += n_cols
+    faces = np.append(faces, vertical_w_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, vertical_w_faces[:,bot_right_idxs], axis=0)
+
+    # Index arrays for corners
+    top_idxs = np.array([4, 1, 0])
+    bot_idxs = np.array([5, 2, 3])
+    side_idxs_1 = np.array([4, 2, 1])
+    side_idxs_2 = np.array([4, 3, 2])
+
+    # SW-NE-NW
+    sw_ne_nw = np.logical_and(sw, ne)
+    sw_ne_nw = np.logical_and(sw_ne_nw, nw)
+    sw_ne_nw = np.logical_and(sw_ne_nw, np.logical_not(se))
+    sw_ne_nw_faces = idxs[sw_ne_nw].reshape(-1, 1)
+    sw_ne_nw_faces = np.tile(sw_ne_nw_faces, 6)
+    sw_ne_nw_faces[:,1] += n_cols
+    sw_ne_nw_faces[:,2] += dem_size + n_cols
+    sw_ne_nw_faces[:,3] += dem_size + 1
+    sw_ne_nw_faces[:,4] += 1
+    sw_ne_nw_faces[:,5] += dem_size
+    faces = np.append(faces, sw_ne_nw_faces[:,top_idxs], axis=0)
+    faces = np.append(faces, sw_ne_nw_faces[:,bot_idxs], axis=0)
+    faces = np.append(faces, sw_ne_nw_faces[:,side_idxs_1], axis=0)
+    faces = np.append(faces, sw_ne_nw_faces[:,side_idxs_2], axis=0)
+
+    # SW-NE-SE
+    sw_ne_se = np.logical_and(sw, ne)
+    sw_ne_se = np.logical_and(sw_ne_se, se)
+    sw_ne_se = np.logical_and(sw_ne_se, np.logical_not(nw))
+    sw_ne_se_faces = idxs[sw_ne_se].reshape(-1, 1)
+    sw_ne_se_faces = np.tile(sw_ne_se_faces, 6)
+    sw_ne_se_faces[:,0] += n_cols + 1
+    sw_ne_se_faces[:,1] += 1
+    sw_ne_se_faces[:,2] += dem_size + 1
+    sw_ne_se_faces[:,3] += dem_size + n_cols
+    sw_ne_se_faces[:,4] += n_cols
+    sw_ne_se_faces[:,5] += dem_size + n_cols + 1
+    faces = np.append(faces, sw_ne_se_faces[:,top_idxs], axis=0)
+    faces = np.append(faces, sw_ne_se_faces[:,bot_idxs], axis=0)
+    faces = np.append(faces, sw_ne_se_faces[:,side_idxs_1], axis=0)
+    faces = np.append(faces, sw_ne_se_faces[:,side_idxs_2], axis=0)
+
+    # NW-SE-NE
+    nw_se_ne = np.logical_and(nw, se)
+    nw_se_ne = np.logical_and(nw_se_ne, ne)
+    nw_se_ne = np.logical_and(nw_se_ne, np.logical_not(sw))
+    nw_se_ne_faces = idxs[nw_se_ne].reshape(-1, 1)
+    nw_se_ne_faces = np.tile(nw_se_ne_faces, 6)
+    nw_se_ne_faces[:,0] += 1
+    nw_se_ne_faces[:,2] += dem_size
+    nw_se_ne_faces[:,3] += dem_size + n_cols + 1
+    nw_se_ne_faces[:,4] += n_cols + 1
+    nw_se_ne_faces[:,5] += dem_size + 1
+    faces = np.append(faces, nw_se_ne_faces[:,top_idxs], axis=0)
+    faces = np.append(faces, nw_se_ne_faces[:,bot_idxs], axis=0)
+    faces = np.append(faces, nw_se_ne_faces[:,side_idxs_1], axis=0)
+    faces = np.append(faces, nw_se_ne_faces[:,side_idxs_2], axis=0)
+
+    # NW-SE-SW
+    nw_se_sw = np.logical_and(nw, se)
+    nw_se_sw = np.logical_and(nw_se_sw, sw)
+    nw_se_sw = np.logical_and(nw_se_sw, np.logical_not(ne))
+    nw_se_sw_faces = idxs[nw_se_sw].reshape(-1, 1)
+    nw_se_sw_faces = np.tile(nw_se_sw_faces, 6)
+    nw_se_sw_faces[:,0] += n_cols
+    nw_se_sw_faces[:,1] += n_cols + 1
+    nw_se_sw_faces[:,2] += dem_size + n_cols + 1
+    nw_se_sw_faces[:,3] += dem_size
+    nw_se_sw_faces[:,5] += dem_size + n_cols
+    faces = np.append(faces, nw_se_sw_faces[:,top_idxs], axis=0)
+    faces = np.append(faces, nw_se_sw_faces[:,bot_idxs], axis=0)
+    faces = np.append(faces, nw_se_sw_faces[:,side_idxs_1], axis=0)
+    faces = np.append(faces, nw_se_sw_faces[:,side_idxs_2], axis=0)
+
+    mesh = pymeshlab.Mesh(
+        vertex_matrix = vertices,
+        face_matrix = faces
+    )
+    ms = pymeshlab.MeshSet()
+    ms.add_mesh(mesh)
+
+    ms.apply_filter("remove_unreferenced_vertices")
+
+    return ms
 
 def meshify(heights, mapping=None, materials=None):
 
@@ -85,12 +275,12 @@ def meshify(heights, mapping=None, materials=None):
         
     return vertices, faces    
 
-def mesh_to_obj(vertices, faces, material_name, mtllib):
+def mesh_to_obj(vertices, faces):
     lines = []
-    lines.append(f"mtllib {mtllib}\n")
+    # lines.append(f"mtllib {mtllib}\n")
     for v in vertices:
         lines.append(f"v {v[0]} {v[1]} {v[2]}\n")
-    lines.append(f"newmtl {material_name}\n")
+    # lines.append(f"newmtl {material_name}\n")
     for f in faces:
         lines.append(f"f {f[0]+1} {f[1]+1} {f[2]+1}\n")
     return lines

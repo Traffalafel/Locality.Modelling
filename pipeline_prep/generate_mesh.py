@@ -1,6 +1,6 @@
 import os
 import rasterio
-from meshify import meshify, mesh_to_obj
+from meshify import meshify, mesh_to_obj, meshify_elevation
 import numpy as np
 import cv2 as cv
 from aggregate import aggregate
@@ -58,58 +58,34 @@ def generate_mesh(file_name, dir_out):
     heights_terrain = dataset_terrain.read(1)
     
     # Building heights
-    buildings_file_path = os.path.join(HEIGHTS_BUILDINGS_DIR, "raw", file_name)
+    buildings_file_path = os.path.join(HEIGHTS_BUILDINGS_DIR, "1x1", file_name)
     dataset_buildings = rasterio.open(buildings_file_path)
     heights_buildings = dataset_buildings.read(1)
-   
-    # Trees heights
-    trees_file_path = os.path.join(HEIGHTS_TREES_DIR, "raw", file_name)
-    dataset_trees = rasterio.open(trees_file_path)
-    heights_trees = dataset_trees.read(1)
 
-    # TODO: 
-    
-    materials = set()
-    materials.add(0)
-    materials.add(1)
+    # Create and save terrain mesh
 
-    vertices_terrain, faces_terrain = meshify(
-        heights_terrain,
-        None, # mask_roads,
-        None # materials
-    )
-
-    vertices_buildings, faces_buildings = meshify(
-        heights_buildings,
-        None,
-        None
-    )
-    
-    vertices_trees, faces_trees = meshify(
-        heights_trees,
-        None,
-        None
-    )
-
-    lines_terrain = mesh_to_obj(vertices_terrain[0], faces_terrain[0], "terrain", MTLLIB)
-    lines_buildings = mesh_to_obj(vertices_buildings[0], faces_buildings[0], "building", MTLLIB)
-    lines_trees = mesh_to_obj(vertices_trees[0], faces_trees[0], "tree", MTLLIB)
-    # lines_roads = mesh_to_obj(vertices_terrain[1], faces_terrain[1], "road", MTLLIB)
-
-    file_terrain_out = file_name + "_terrain.obj"
-    file_out_path = os.path.join(dir_out, file_terrain_out)
-    with open(file_out_path, 'w+') as fd:
-        fd.writelines(lines_terrain)
-    
+    # Create and save building mesh
+    mesh_buildings = meshify_elevation(heights_buildings, heights_terrain)
     file_buildings_out = file_name + "_building.obj"
     file_out_path = os.path.join(dir_out, file_buildings_out)
-    with open(file_out_path, 'w+') as fd:
-        fd.writelines(lines_buildings)
+    mesh_buildings.save_current_mesh(file_out_path)
 
-    file_trees_out = file_name + "_trees.obj"
-    file_out_path = os.path.join(dir_out, file_trees_out)
-    with open(file_out_path, 'w+') as fd:
-        fd.writelines(lines_trees)
+    # # Trees heights
+    # trees_file_path = os.path.join(HEIGHTS_TREES_DIR, "1x1", file_name)
+    # dataset_trees = rasterio.open(trees_file_path)
+    # heights_trees = dataset_trees.read(1)
+
+    # TODO: 
+
+    # file_terrain_out = file_name + "_terrain.obj"
+    # file_out_path = os.path.join(dir_out, file_terrain_out)
+    # with open(file_out_path, 'w+') as fd:
+    #     fd.writelines(lines_terrain)
+
+    # file_trees_out = file_name + "_trees.obj"
+    # file_out_path = os.path.join(dir_out, file_trees_out)
+    # with open(file_out_path, 'w+') as fd:
+    #     fd.writelines(lines_trees)
     
     # file_roads_out = file_name + "_road.obj"
     # file_out_path = os.path.join(dir_out, file_roads_out)

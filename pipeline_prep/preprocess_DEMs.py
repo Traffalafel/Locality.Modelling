@@ -36,29 +36,33 @@ def save(heights, transform, file_path, crs):
     )
     dataset_out.write(heights, 1)
 
-def morph(heights, heights_terrain, blur_size):
-    
+def blur(heights, heights_terrain, blur_size):
+
     # Blur
     negative = cv.GaussianBlur(heights, (blur_size, blur_size), 0) == -1
     heights_blurred = np.maximum(heights, heights_terrain)
     heights_blurred = cv.GaussianBlur(heights_blurred, (blur_size, blur_size), 0)
     heights_blurred[negative] = -1
 
-    heights_out = heights_blurred.copy()
+    return heights_blurred
+
+def morph(heights, heights_terrain):
+    
+    heights_out = heights.copy()
 
     # Open
     kernel = np.ones((3,3), np.float32) 
     mask = heights_out != -1
     mask = cv.morphologyEx(mask.astype(np.uint8), cv.MORPH_OPEN, kernel)
     heights_out[mask == 0] = -1
-    heights_out[mask == 1] = heights_blurred[mask == 1]
+    heights_out[mask == 1] = heights[mask == 1]
 
     # Close
     kernel = np.ones((3,3), np.float32) 
     mask = heights_out != -1
     mask = cv.morphologyEx(mask.astype(np.uint8), cv.MORPH_CLOSE, kernel)
     heights_out[mask == 0] = -1
-    heights_out[mask == 1] = heights_blurred[mask == 1]
+    heights_out[mask == 1] = heights[mask == 1]
 
     return heights_out
 
@@ -82,7 +86,9 @@ def preprocess_DEM(file_name, heights_dir):
     heights_trees = dataset_trees.read(1)
 
     # Clean
-    heights_buildings = morph(heights_buildings, heights_terrain, GAUSSIAN_SIZE)
+    heights_buildings = blur(heights_buildings, heights_terrain, GAUSSIAN_SIZE)
+
+    heights_trees = blur(heights_trees, heights_terrain, GAUSSIAN_SIZE)
     heights_trees = morph(heights_trees, heights_terrain, GAUSSIAN_SIZE)
 
     # Set pixels to max
