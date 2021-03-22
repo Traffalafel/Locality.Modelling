@@ -1,31 +1,37 @@
 import numpy as np
+import cv2 as cv
 import math
 import os
 import rasterio
 from rasterio.crs import CRS
 import rasterio.transform
 import sys
+import pylas
 from create_heights import create_heights
 from interpolate import interpolate
 
+import matplotlib.pyplot as plt
+
+DIR_LIDAR = r"C:\data\lidar"
+DIR_MASKS_BUILDINGS = r"C:\data\masks\buildings"
+
+CLASS_NOISE = 1
 CLASS_GROUND = 2
+CLASS_VEGETATION_HIGH = 5
+CLASS_VEGETATION_MEDIUM = 5
 CLASS_BUILDINGS = 6
-CLASSES_TREES = [5, 4]
+CLASSES_TREES = [CLASS_VEGETATION_HIGH, CLASS_VEGETATION_MEDIUM]
 ETRS89_UTM32N = 25832
 
+MIN_N_OF_RETURNS_TREES = 3
 TILE_SIZE = 1000
 PIXEL_SIZE = 0.4
 
-def get_file_name(file_path):
-    head, tail = os.path.split(file_path)
-    file_name = tail.split(".")[0]
-    return file_name
-
-def get_dir_files(dir_path):
+def get_dir_file_names(dir_path):
     contents = os.listdir(dir_path)
     files = [c for c in contents if os.path.isfile(os.path.join(dir_path, c))]
-    files = [f.split(".")[0] for f in files]
-    return files
+    file_names = [f.split(".")[0] for f in files]
+    return file_names
 
 def get_file_bounds(file_name):
     file_name = file_name.split('.')[0]
@@ -35,35 +41,118 @@ def get_file_bounds(file_name):
     max_y = min_y + TILE_SIZE
     return (min_x, max_x, min_y, max_y)
 
-def generate_DEM(file_path_in, dir_out):
-    
-    print(file_path_in)
+def save_raster(values, file_path, transform):
+    dataset = rasterio.open(
+        file_path,
+        mode="w",
+        driver="GTiff",
+        width=values.shape[1],
+        height=values.shape[0],
+        count=1,
+        crs=CRS.from_epsg(ETRS89_UTM32N),
+        transform=transform,
+        dtype=values.dtype
+    )
+    dataset.write(values, 1)
 
+def erode(heights):
+    
+    null_val = -1
+    n_rows, n_cols = heights.shape
+
+    # Vertical
+    vertical_n = heights[:n_rows-3, :] == null_val
+    vertical_s = heights[3:, :] == null_val
+    vertical = np.logical_and(vertical_n, vertical_s)
+    row_false = np.full(n_cols, False)
+    vertical_1 = np.insert(vertical, 0, row_false, axis=0)
+    vertical_1 = np.append(vertical_1, row_false.reshape(1,-1), axis=0)
+    vertical_1 = np.append(vertical_1, row_false.reshape(1,-1), axis=0)
+    vertical_2 = np.insert(vertical, 0, row_false, axis=0)
+    vertical_2 = np.insert(vertical_2, 0, row_false, axis=0)
+    vertical_2 = np.append(vertical_2, row_false.reshape(1,-1), axis=0)
+    vertical_idxs = np.logical_or(vertical_1, vertical_2)
+    heights[vertical_idxs] = -1
+    
+    # Horizontal
+    horizontal_w = heights[:, :n_cols-3] == null_val
+    horizontal_e = heights[:, 3:] == null_val
+    horizontal = np.logical_and(horizontal_w, horizontal_e)
+    col_false = np.full(n_rows, False)
+    horizontal_1 = np.insert(horizontal, 0, col_false, axis=1)
+    horizontal_1 = np.append(horizontal_1, col_false.reshape(-1,1), axis=1)
+    horizontal_1 = np.append(horizontal_1, col_false.reshape(-1,1), axis=1)
+    horizontal_2 = np.insert(horizontal, 0, col_false, axis=1)
+    horizontal_2 = np.insert(horizontal_2, 0, col_false, axis=1)
+    horizontal_2 = np.append(horizontal_2, col_false.reshape(-1,1), axis=1)
+    horizontal_idxs = np.logical_or(horizontal_1, horizontal_2)
+    heights[horizontal_idxs] = -1
+
+def generate_DEM(file_name, dir_out):
+    
     dem_size = int(TILE_SIZE / PIXEL_SIZE)
     
-    print("Generating ground")
-    heights_ground = create_heights(file_path_in, [CLASS_GROUND], 1, PIXEL_SIZE, dem_size)
+    # Get buildings mask
+    file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, file_name + ".tif")
+    dataset_mask_buildings = rasterio.open(file_mask_buildings_path)
+    mask_buildings = dataset_mask_buildings.read(1)
+    mask_buildings = mask_buildings.astype(np.uint8)
 
-    print("Generating buildings")
-    heights_buildings = create_heights(file_path_in, [CLASS_BUILDINGS], 1, PIXEL_SIZE, dem_size)
+    # Dilate buildings mask
+    kernel = np.ones((5,5))
+    mask_buildings = cv.dilate(mask_buildings, kernel, iterations=1)
+    mask_buildings = mask_buildings == 1
 
+    file_las_path = os.path.join(DIR_LIDAR, file_name + ".las")
+
+    # Get buildings heights
+    print("Buildings")
+    las_buildings = pylas.read(file_las_path)
+    las_buildings.points = las_buildings.points[las_buildings.classification == CLASS_BUILDINGS]
+    heights_buildings = create_heights(las_buildings, PIXEL_SIZE, dem_size)
+
+    # Set buildings that have been falsely classified as vegetation
+    falsely_classified = np.full((dem_size, dem_size), -1, np.float32)
+    las_trees = pylas.read(file_las_path)
+    las_trees.points = las_trees.points[np.isin(las_trees.classification, CLASSES_TREES)]
+    las_trees.points = las_trees.points[las_trees['number_of_returns'] < MIN_N_OF_RETURNS_TREES]
+    heights_trees = create_heights(las_trees, PIXEL_SIZE, dem_size)
+    falsely_classified[mask_buildings] = heights_trees[mask_buildings]
+    falsely_classified[heights_buildings != -1] = -1
+    heights_buildings = np.maximum(heights_buildings, falsely_classified)
+    
+    # Get terrain heights
+    print("Terrain")
+    las_terrain = pylas.read(file_las_path)
+    las_terrain.points = las_terrain.points[las_terrain.classification == CLASS_GROUND]
+    las_terrain.points = las_terrain.points[las_terrain['number_of_returns'] == 1]
+    heights_terrain = create_heights(las_terrain, PIXEL_SIZE, dem_size)
+    erode(heights_terrain)
+
+    # Get trees heights
+    print("Trees")
+    las_trees = pylas.read(file_las_path)
+    las_trees.points = las_trees.points[np.isin(las_trees.classification, CLASSES_TREES)]
+    las_trees.points = las_trees.points[las_trees['number_of_returns'] >= MIN_N_OF_RETURNS_TREES]
+    heights_trees = create_heights(las_trees, PIXEL_SIZE, dem_size)
+    
+    # Interpolate trees
+    print("Interpolating trees")
+    mask_interpolation_trees = heights_terrain != -1
+    mask_interpolation_trees = mask_interpolation_trees.astype(np.uint8)
+    kernel = np.ones((5,5))
+    mask_interpolation_trees = cv.erode(mask_interpolation_trees, kernel, iterations=1)
+    mask_interpolation_trees = mask_interpolation_trees == 1
+    interpolate(heights_trees, mask_interpolation_trees, limit_v=None, limit_h=6)
+    erode(heights_trees)
+
+    # Interpolate buildings
     print("Interpolating buildings")
-    interpolate(heights_buildings, heights_ground)
-
-    print("Generating trees")
-    heights_trees = create_heights(file_path_in, CLASSES_TREES, 1, PIXEL_SIZE, dem_size)
-
-    # Rotate buildings
-    heights_buildings = np.transpose(heights_buildings)
-    heights_buildings = np.flip(heights_buildings, axis=0)
-
-    # Rotate trees
-    heights_trees = np.transpose(heights_trees)
-    heights_trees = np.flip(heights_trees, axis=0)
-
-    print("Saving")
-
-    file_name = get_file_name(file_path_in)
+    mask_interpolation_trees = mask_buildings == False
+    interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=None)
+    interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=None)
+    
+    # Create bounds
     bounds = get_file_bounds(file_name)
     transform = rasterio.transform.from_bounds(
         west=bounds[0],
@@ -74,39 +163,25 @@ def generate_DEM(file_path_in, dir_out):
         height=dem_size,
     )
 
-    print("Saving buildings")
+    # Save buildings
     file_path_buildings = os.path.join(dir_out, "buildings", "raw", f"{file_name}.tif")
-    dataset = rasterio.open(
-        file_path_buildings,
-        mode="w",
-        driver="GTiff",
-        width=dem_size,
-        height=dem_size,
-        count=1,
-        crs=CRS.from_epsg(ETRS89_UTM32N),
-        transform=transform,
-        dtype=heights_buildings.dtype
-    )
-    dataset.write(heights_buildings, 1)
+    save_raster(heights_buildings, file_path_buildings, transform)
     
-    print("Saving trees")
+    # Save trees
     file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
-    dataset = rasterio.open(
-        file_path_trees,
-        mode="w",
-        driver="GTiff",
-        width=dem_size,
-        height=dem_size,
-        count=1,
-        crs=CRS.from_epsg(ETRS89_UTM32N),
-        transform=transform,
-        dtype=heights_trees.dtype
-    )
-    dataset.write(heights_trees, 1)
+    save_raster(heights_trees, file_path_trees, transform)
+
 
 def main():
-    file_in = r"D:\PrintCitiesData\lidar\710_6180.las"
-    dir_out = r"D:\PrintCitiesData\heights"
-    generate_DEM(file_in, dir_out)
+    dir_out = r"C:\data\heights"
+
+    files_in = get_dir_file_names(DIR_LIDAR)
+
+    for file_name in files_in:
+        print(f"processing {file_name}")
+        generate_DEM(file_name, dir_out)
+
+        # TODO: Remove
+        break
 
 main()

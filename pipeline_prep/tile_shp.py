@@ -32,8 +32,6 @@ def main():
     print("Loading shapefile")
     df = geopandas.read_file(file_in_path)
 
-    min_x, min_y, max_x, max_y = df['geometry'].total_bounds
-    
     # Compute bounds
     bounds_w = math.ceil(bounds_w / TILE_SIZE)
     bounds_e = math.floor(bounds_e / TILE_SIZE)

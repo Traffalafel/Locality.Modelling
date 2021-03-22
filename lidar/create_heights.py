@@ -1,10 +1,8 @@
 import numpy as np
 import pylas
 
-def create_heights(file_path, classes, min_bucket_size, step_size, dem_size):
-    las = pylas.read(file_path)
-    las.points = las.points[np.isin(las.classification, classes)]
-
+def create_heights(las, step_size, dem_size):
+    
     # Get parameters
     x_scale = las.header.x_scale
     x_offset = las.header.x_offset
@@ -28,15 +26,19 @@ def create_heights(file_path, classes, min_bucket_size, step_size, dem_size):
 
     # Compute sums
     heights = np.zeros(dem_size**2, dtype=np.float32)
-    np.add.at(heights, idxs_1d, z_heights)
+    np.maximum.at(heights, idxs_1d, z_heights)
     heights = heights.reshape((dem_size, dem_size))
     
-    # Compute counts
-    counts = np.zeros(dem_size**2, dtype=np.float32)
-    np.add.at(counts, idxs_1d, 1)
-    counts[counts == 0] = 1
-    counts = counts.reshape((dem_size, dem_size))
+    # # Compute counts
+    # counts = np.zeros(dem_size**2, dtype=np.float32)
+    # np.add.at(counts, idxs_1d, 1)
+    # counts[counts == 0] = 1
+    # counts = counts.reshape((dem_size, dem_size))
 
-    averages = heights / counts
-    averages[averages == 0] = -1
-    return averages
+    # averages = heights / counts
+    heights[heights == 0] = -1
+
+    heights = np.transpose(heights)
+    heights = np.flip(heights, axis=0)
+
+    return heights

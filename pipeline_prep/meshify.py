@@ -4,38 +4,9 @@ import pymeshlab
 
 PIXEL_SIZE = 0.4
 
-def extract_material(vertices, faces):
-    
-    # Find which vertices to keep
-    vertices_keep = set()
-    for face in faces:
-        for v in face:
-            vertices_keep.add(v)
-
-    # Give new indices to vertices to keep
-    new_idx = 0
-    vertices_new_idxs = dict()
-    vertices_new = []
-    for old_idx, v in enumerate(vertices):
-        if old_idx in vertices_keep:
-            vertices_new.append(v)
-            vertices_new_idxs[old_idx] = new_idx
-            new_idx += 1
-
-    # Set these new vertices in faces
-    faces_new = []
-    for face in faces:
-        face_new = [vertices_new_idxs[v] for v in face]
-        faces_new.append(face_new)
-
-    return vertices_new, faces_new
-
-def meshify_terrain(heights, roads_mask, green_mask, water_mask):
-    pass
-
 def generate_vertices(heights):
     n_rows, n_cols = heights.shape
-    xs = np.arange(n_cols)
+    xs = np.arange(n_cols, 0, -1)
     ys = np.arange(n_rows)
     xx, yy = np.meshgrid(xs, ys)
     xx = xx.reshape((n_rows, n_cols, -1))
@@ -45,6 +16,73 @@ def generate_vertices(heights):
     vertices = vertices.astype(np.float32) * PIXEL_SIZE
     vertices = np.append(vertices, heights.reshape(-1, 1), axis=1)
     return vertices
+
+def generate_terrain_mesh(heights, mask):
+
+    vertices = generate_vertices(heights)
+
+    n_rows, n_cols = heights.shape
+
+    idxs = np.arange((n_rows-1) * (n_cols-1))
+    idxs = idxs.reshape((n_rows-1, n_cols-1))
+    offsets = np.arange(n_rows-1).reshape((-1, 1))
+    offsets = np.tile(offsets, n_cols-1)
+    idxs = idxs + offsets
+
+    top_left_idxs = np.array([3, 1, 0])
+    bot_right_idxs = np.array([3, 2, 1])
+
+    faces = np.empty((0,3), dtype=np.int32)
+
+    idxs_terrain = idxs[mask]
+    idxs_terrain = idxs_terrain.reshape(-1, 1)
+    idxs_terrain = np.tile(idxs_terrain, 4)
+    idxs_terrain[:,1] += n_cols
+    idxs_terrain[:,2] += n_cols + 1
+    idxs_terrain[:,3] += 1
+    faces = np.append(faces, idxs_terrain[:,top_left_idxs], axis=0)
+    faces = np.append(faces, idxs_terrain[:,bot_right_idxs], axis=0)
+
+    mesh = pymeshlab.Mesh(
+        vertex_matrix = vertices,
+        face_matrix = faces
+    )
+    ms = pymeshlab.MeshSet()
+
+    ms.add_mesh(mesh)
+
+    ms.apply_filter("remove_unreferenced_vertices")
+
+    return ms
+
+
+def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water):
+
+    n_rows, n_cols = heights_terrain.shape
+
+    # TODO: remove
+    # remove offsets
+    mask_roads = mask_roads[:n_rows-1,:n_cols-1]
+    mask_green = mask_green[:n_rows-1,:n_cols-1]
+    mask_water = mask_water[:n_rows-1,:n_cols-1]
+
+    # Create terrain mask
+    mask_terrain = np.logical_or(mask_roads, mask_green)
+    mask_terrain = np.logical_or(mask_terrain, mask_water)
+    mask_terrain = np.logical_not(mask_terrain)
+
+    # Make sure masks do not overlap
+    mask_water[mask_roads] = False
+    mask_water[mask_green] = False
+    mask_green[mask_roads] = False
+    
+    # Create meshes
+    ms_terrain = generate_terrain_mesh(heights_terrain, mask_terrain)
+    ms_roads = generate_terrain_mesh(heights_terrain, mask_roads)
+    ms_green = generate_terrain_mesh(heights_terrain, mask_green)
+    ms_water = generate_terrain_mesh(heights_terrain, mask_water)
+
+    return ms_terrain, ms_roads, ms_green, ms_water
 
 def meshify_elevation(heights, heights_terrain):
 
@@ -228,62 +266,6 @@ def meshify_elevation(heights, heights_terrain):
 
     return ms
 
-def meshify(heights, mapping=None, materials=None):
-
-    n_rows, n_cols = heights.shape
-    n_heights = n_rows*n_cols
-
-    if mapping is None:
-        shape = (heights.shape[0]-1, heights.shape[1]-1)
-        mapping = np.zeros(shape)
-        materials = set()
-        materials.add(0)
-
-    # Vertices
-    vertices_global = []
-    for row in range(n_rows):
-        for col in range(n_cols):
-            height = heights[row][col]
-            vertices_global.append([row+0.5, col+0.5, height])
-
-    # Faces
-    vertices = dict()
-    faces = dict()
-    for material in materials:
-        faces[material] = []
-        idxs = np.argwhere(mapping == material)
-        for row, col in idxs:
-            
-            heights_corners = [heights[row+i][col+j] for i in range(2) for j in range(2)]
-            if any(h == -1 for h in heights_corners):
-                continue
-
-            offset = (row * n_cols) + col
-            max_idx = heights_corners.index(max(heights_corners))
-            if max_idx == 0 or max_idx == 3:
-                # max is NW or SE
-                faces[material].append([offset, offset+n_cols, offset+1])
-                faces[material].append([offset+1, offset+n_cols, offset+n_cols+1])
-            else:
-                # max is SW or NE
-                faces[material].append([offset, offset+n_cols, offset+n_cols+1])
-                faces[material].append([offset, offset+n_cols+1, offset+1])
-
-        vertices_mat, faces_mat = extract_material(vertices_global, faces[material])
-        faces[material] = faces_mat
-        vertices[material] = vertices_mat
-        
-    return vertices, faces    
-
-def mesh_to_obj(vertices, faces):
-    lines = []
-    # lines.append(f"mtllib {mtllib}\n")
-    for v in vertices:
-        lines.append(f"v {v[0]} {v[1]} {v[2]}\n")
-    # lines.append(f"newmtl {material_name}\n")
-    for f in faces:
-        lines.append(f"f {f[0]+1} {f[1]+1} {f[2]+1}\n")
-    return lines
 
 # # Top side vertices
 # for col in range(n_cols):

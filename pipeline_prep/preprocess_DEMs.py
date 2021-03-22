@@ -8,9 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Heights in
-TERRAIN_DIR = r"D:\PrintCitiesData\heights\terrain"
-BUILDINGS_DIR = r"D:\PrintCitiesData\heights\buildings"
-TREES_DIR = r"D:\PrintCitiesData\heights\trees"
+TERRAIN_DIR = r"C:\data\heights\terrain"
+BUILDINGS_DIR = r"C:\data\heights\buildings"
+TREES_DIR = r"C:\data\heights\trees"
 
 # Args
 AGGREG_METHOD = "max"
@@ -89,7 +89,7 @@ def preprocess_DEM(file_name, heights_dir):
     heights_buildings = blur(heights_buildings, heights_terrain, GAUSSIAN_SIZE)
 
     heights_trees = blur(heights_trees, heights_terrain, GAUSSIAN_SIZE)
-    heights_trees = morph(heights_trees, heights_terrain, GAUSSIAN_SIZE)
+    heights_trees = morph(heights_trees, heights_terrain)
 
     # Set pixels to max
     heights_trees[heights_buildings >= heights_trees] = -1
@@ -111,8 +111,8 @@ def preprocess_DEM(file_name, heights_dir):
     print(f"saved {file_name}")
 
 def main():
-    file_name = r"710_6180"
-    heights_dir = r"D:\PrintCitiesData\heights"
+    file_name = r"723_6175"
+    heights_dir = r"C:\data\heights"
     preprocess_DEM(file_name, heights_dir)
 
 main()
