@@ -13,14 +13,13 @@ BUILDINGS_DIR = r"C:\data\heights\buildings"
 TREES_DIR = r"C:\data\heights\trees"
 
 # Args
-AGGREG_METHOD = "max"
 GAUSSIAN_SIZE = 3
 
-def get_dir_files(dir_path):
+def get_dir_file_names(dir_path):
     contents = os.listdir(dir_path)
     files = [c for c in contents if os.path.isfile(os.path.join(dir_path, c))]
-    files_tif = [f for f in files if f.split(".")[1] == "tif"]
-    return files_tif
+    file_names = [f.split(".")[0] for f in files]
+    return file_names
 
 def save(heights, transform, file_path, crs):
     dataset_out = rasterio.open(
@@ -103,16 +102,12 @@ def preprocess_DEM(file_name, heights_dir):
     trees_file_path_out = os.path.join(heights_dir, "trees", "1x1", file_name)
     save(heights_trees, dataset_trees.transform, trees_file_path_out, dataset_trees.crs)
 
-    # # Aggregate and save 2x2
-    # heights_2x2, transform_2x2 = aggregate(heights, dataset.bounds, 2, AGGREG_METHOD)
-    # file_path_out = os.path.join(BUILDINGS_DIR, "2x2", file_name)
-    # save(heights_2x2, transform_2x2, file_path_out, dataset.crs)
-
-    print(f"saved {file_name}")
-
 def main():
-    file_name = r"723_6175"
     heights_dir = r"C:\data\heights"
-    preprocess_DEM(file_name, heights_dir)
+    buildings_dir_raw = os.path.join(heights_dir, "buildings", "raw")
+    files_in = get_dir_file_names(buildings_dir_raw)
+    for file_name in files_in:
+        print(f"{file_name}")
+        preprocess_DEM(file_name, heights_dir)
 
 main()

@@ -29,8 +29,8 @@ def generate_terrain_mesh(heights, mask):
     offsets = np.tile(offsets, n_cols-1)
     idxs = idxs + offsets
 
-    top_left_idxs = np.array([3, 1, 0])
-    bot_right_idxs = np.array([3, 2, 1])
+    top_left_idxs = np.array([0, 1, 3])
+    bot_right_idxs = np.array([1, 2, 3])
 
     faces = np.empty((0,3), dtype=np.int32)
 
@@ -108,8 +108,11 @@ def meshify_elevation(heights, heights_terrain):
     
     faces = np.empty((0,3), dtype=np.int32)
 
-    top_left_idxs = np.array([3, 1, 0])
-    bot_right_idxs = np.array([3, 2, 1])
+    top_left_idxs = np.array([0, 1, 3])
+    bot_right_idxs = np.array([1, 2, 3])
+
+    top_right_idxs = np.array([0, 2, 3])
+    bot_left_idxs = np.array([1, 2, 0])
 
     # Grid facing up
     grid_up = np.logical_and(nw, sw)
@@ -121,8 +124,21 @@ def meshify_elevation(heights, heights_terrain):
     grid_up_faces[:,1] += n_cols
     grid_up_faces[:,2] += n_cols + 1
     grid_up_faces[:,3] += 1
-    faces = np.append(faces, grid_up_faces[:,top_left_idxs], axis=0)
-    faces = np.append(faces, grid_up_faces[:,bot_right_idxs], axis=0)
+
+    grid_up_vertices = vertices[grid_up_faces]
+    grid_up_heights = grid_up_vertices[:,:,2]
+    grid_up_maxes = np.argmax(grid_up_heights, axis=1)
+
+    grid_up_nw_se_idxs = np.isin(grid_up_maxes, [0,2])
+    grid_up_sw_ne_idxs = np.isin(grid_up_maxes, [1,3])
+    grid_up_nw_se_faces = grid_up_faces[grid_up_nw_se_idxs]
+    grid_up_sw_ne_faces = grid_up_faces[grid_up_sw_ne_idxs]
+
+    faces = np.append(faces, grid_up_nw_se_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, grid_up_nw_se_faces[:,bot_right_idxs], axis=0)
+
+    faces = np.append(faces, grid_up_sw_ne_faces[:,top_right_idxs], axis=0)
+    faces = np.append(faces, grid_up_sw_ne_faces[:,bot_left_idxs], axis=0)
 
     # Grid facing down
     grid_down_faces = idxs[grid_up].reshape(-1, 1)
@@ -185,10 +201,10 @@ def meshify_elevation(heights, heights_terrain):
     faces = np.append(faces, vertical_w_faces[:,bot_right_idxs], axis=0)
 
     # Index arrays for corners
-    top_idxs = np.array([4, 1, 0])
-    bot_idxs = np.array([5, 2, 3])
-    side_idxs_1 = np.array([4, 2, 1])
-    side_idxs_2 = np.array([4, 3, 2])
+    top_idxs = np.array([0, 1, 4])
+    bot_idxs = np.array([3, 2, 5])
+    side_idxs_1 = np.array([1, 2, 4])
+    side_idxs_2 = np.array([2, 3, 4])
 
     # SW-NE-NW
     sw_ne_nw = np.logical_and(sw, ne)

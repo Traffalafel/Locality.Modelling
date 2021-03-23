@@ -31,21 +31,13 @@ def generate_mesh(file_name, dir_out):
 
     file_name_raster = file_name + ".tif"
 
-    # Terrain heights
+    print("Terrain meshes")
+
+    # Load terrain heights
     terrain_file_path = os.path.join(HEIGHTS_TERRAIN_DIR, "raw", file_name_raster)
     dataset_terrain = rasterio.open(terrain_file_path)
     heights_terrain = dataset_terrain.read(1)
     
-    # Buildings heights
-    buildings_file_path = os.path.join(HEIGHTS_BUILDINGS_DIR, "1x1", file_name_raster)
-    dataset_buildings = rasterio.open(buildings_file_path)
-    heights_buildings = dataset_buildings.read(1)
-    
-    # Trees heights
-    trees_file_path = os.path.join(HEIGHTS_TREES_DIR, "1x1", file_name_raster)
-    dataset_trees = rasterio.open(trees_file_path)
-    heights_trees = dataset_trees.read(1)
-
     # Roads mask
     roads_file_path = os.path.join(MASKS_ROADS_DIR, file_name_raster)
     dataset_roads = rasterio.open(roads_file_path)
@@ -65,56 +57,70 @@ def generate_mesh(file_name, dir_out):
     mask_water = mask_water == 1
     # mask_water = np.full(heights_terrain.shape, False)
 
-    # Create terrain meshes
-    print("Creating terrain meshes")
     mask_total = np.logical_or(mask_roads, mask_green)
     mask_total = np.logical_or(mask_total, mask_water)
     ms_terrain, ms_roads, ms_green, ms_water = meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water)
 
     # Save terrain
-    print("Saving terrain mesh")
-    file_terrain_out = file_name + "_terrain.obj"
+    file_terrain_out = file_name + "_terrain.stl"
     file_out_path = os.path.join(dir_out, file_terrain_out)
     ms_terrain.save_current_mesh(file_out_path)
     
     # Save roads
-    print("Saving roads mesh")
-    file_roads_out = file_name + "_roads.obj"
+    file_roads_out = file_name + "_roads.stl"
     file_out_path = os.path.join(dir_out, file_roads_out)
     ms_roads.save_current_mesh(file_out_path)
     
     # Save green
-    print("Saving green mesh")
-    file_green_out = file_name + "_green.obj"
+    file_green_out = file_name + "_green.stl"
     file_out_path = os.path.join(dir_out, file_green_out)
     ms_green.save_current_mesh(file_out_path)
 
     # Save water
-    print("Saving water mesh")
-    file_water_out = file_name + "_water.obj"
+    file_water_out = file_name + "_water.stl"
     file_out_path = os.path.join(dir_out, file_water_out)
     ms_water.save_current_mesh(file_out_path)
 
     # Create and save building mesh
-    print("Creating buildings mesh")
+    print("Buildings mesh")
+    
+    # Load buildings heights
+    buildings_file_path = os.path.join(HEIGHTS_BUILDINGS_DIR, "1x1", file_name_raster)
+    dataset_buildings = rasterio.open(buildings_file_path)
+    heights_buildings = dataset_buildings.read(1)
+
+    # Load terrain heights
+    terrain_file_path = os.path.join(HEIGHTS_TERRAIN_DIR, "raw", file_name_raster)
+    dataset_terrain = rasterio.open(terrain_file_path)
+    heights_terrain = dataset_terrain.read(1)
+
     mesh_buildings = meshify_elevation(heights_buildings, heights_terrain)
 
-    print("Saving buildings mesh")
-    file_buildings_out = file_name + "_buildings.obj"
+    file_buildings_out = file_name + "_buildings.stl"
     file_out_path = os.path.join(dir_out, file_buildings_out)
     mesh_buildings.save_current_mesh(file_out_path)
     
     # Create and save trees mesh
-    print("Creating trees mesh")
+    print("Trees mesh")
+
+    # Load terrain heights
+    terrain_file_path = os.path.join(HEIGHTS_TERRAIN_DIR, "raw", file_name_raster)
+    dataset_terrain = rasterio.open(terrain_file_path)
+    heights_terrain = dataset_terrain.read(1)
+
+    # Trees heights
+    trees_file_path = os.path.join(HEIGHTS_TREES_DIR, "1x1", file_name_raster)
+    dataset_trees = rasterio.open(trees_file_path)
+    heights_trees = dataset_trees.read(1)
+
     mesh_trees = meshify_elevation(heights_trees, heights_terrain)
 
-    print("Saving trees mesh")
-    file_trees_out = file_name + "_trees.obj"
+    file_trees_out = file_name + "_trees.stl"
     file_out_path = os.path.join(dir_out, file_trees_out)
     mesh_trees.save_current_mesh(file_out_path)
 
 def main():
-    file_name = r"723_6175"
+    file_name = r"725_6175"
     dir_out = r"C:\Users\traff\source\repos\PrintCities.Modelling\data\models"
     generate_mesh(
         file_name,

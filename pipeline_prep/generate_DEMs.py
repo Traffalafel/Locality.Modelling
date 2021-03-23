@@ -7,7 +7,6 @@ from rasterio.crs import CRS
 import rasterio.transform
 import sys
 import pylas
-from create_heights import create_heights
 from interpolate import interpolate
 
 import matplotlib.pyplot as plt
@@ -54,6 +53,42 @@ def save_raster(values, file_path, transform):
         dtype=values.dtype
     )
     dataset.write(values, 1)
+
+def create_heights(las, step_size, dem_size):
+    
+    # Get parameters
+    x_scale = las.header.x_scale
+    x_offset = las.header.x_offset
+    x_min = las.header.x_min
+    y_scale = las.header.y_scale
+    y_offset = las.header.y_offset
+    y_min = las.header.y_min
+    z_scale = las.header.z_scale
+    z_offset = las.header.z_offset
+    
+    # Compute coordinates
+    points = np.array([[p[0], p[1], p[2]] for p in las.points])
+    scale = np.array([x_scale, y_scale, z_scale])
+    offset = np.array([x_offset, y_offset, z_offset])
+    points = (points * scale) + offset
+    mins = np.array([x_min, y_min])
+    idxs_2d = points[:,:2]
+    idxs_2d = ((idxs_2d - mins) // step_size).astype(np.int32)
+    idxs_1d = idxs_2d[:,0] * dem_size + idxs_2d[:,1]
+    z_heights = points[:,2]
+
+    # Compute sums
+    heights = np.zeros(dem_size**2, dtype=np.float32)
+    np.maximum.at(heights, idxs_1d, z_heights)
+    heights = heights.reshape((dem_size, dem_size))
+    
+    # averages = heights / counts
+    heights[heights == 0] = -1
+
+    heights = np.transpose(heights)
+    heights = np.flip(heights, axis=0)
+
+    return heights
 
 def erode(heights):
     
@@ -149,8 +184,8 @@ def generate_DEM(file_name, dir_out):
     # Interpolate buildings
     print("Interpolating buildings")
     mask_interpolation_trees = mask_buildings == False
-    interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=None)
-    interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=None)
+    interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=10)
+    interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=10)
     
     # Create bounds
     bounds = get_file_bounds(file_name)
@@ -174,14 +209,9 @@ def generate_DEM(file_name, dir_out):
 
 def main():
     dir_out = r"C:\data\heights"
-
     files_in = get_dir_file_names(DIR_LIDAR)
-
     for file_name in files_in:
-        print(f"processing {file_name}")
+        print(f"{file_name}")
         generate_DEM(file_name, dir_out)
-
-        # TODO: Remove
-        break
 
 main()
