@@ -4,9 +4,10 @@ import pymeshlab
 
 PIXEL_SIZE = 0.4
 
-def generate_vertices(heights):
+def generate_vertices(heights, offset_x, offset_y):
     n_rows, n_cols = heights.shape
-    xs = np.arange(n_cols, 0, -1)
+    # xs = np.arange(n_cols, 0, -1)
+    xs = np.arange(n_cols)
     ys = np.arange(n_rows)
     xx, yy = np.meshgrid(xs, ys)
     xx = xx.reshape((n_rows, n_cols, -1))
@@ -14,12 +15,14 @@ def generate_vertices(heights):
     vertices = np.append(xx, yy, axis=2)
     vertices = vertices.reshape((-1, 2))
     vertices = vertices.astype(np.float32) * PIXEL_SIZE
+    offset = np.array([offset_x, offset_y]) * PIXEL_SIZE
+    vertices += offset
     vertices = np.append(vertices, heights.reshape(-1, 1), axis=1)
     return vertices
 
-def generate_terrain_mesh(heights, mask):
+def generate_terrain_mesh(heights, mask, offset_x, offset_y):
 
-    vertices = generate_vertices(heights)
+    vertices = generate_vertices(heights, offset_x, offset_y)
 
     n_rows, n_cols = heights.shape
 
@@ -29,8 +32,8 @@ def generate_terrain_mesh(heights, mask):
     offsets = np.tile(offsets, n_cols-1)
     idxs = idxs + offsets
 
-    top_left_idxs = np.array([0, 1, 3])
-    bot_right_idxs = np.array([1, 2, 3])
+    top_left_idxs = np.array([3, 1, 0])
+    bot_right_idxs = np.array([3, 2, 1])
 
     faces = np.empty((0,3), dtype=np.int32)
 
@@ -56,7 +59,7 @@ def generate_terrain_mesh(heights, mask):
     return ms
 
 
-def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water):
+def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water, offset_x, offset_y):
 
     n_rows, n_cols = heights_terrain.shape
 
@@ -77,18 +80,18 @@ def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water):
     mask_green[mask_roads] = False
     
     # Create meshes
-    ms_terrain = generate_terrain_mesh(heights_terrain, mask_terrain)
-    ms_roads = generate_terrain_mesh(heights_terrain, mask_roads)
-    ms_green = generate_terrain_mesh(heights_terrain, mask_green)
-    ms_water = generate_terrain_mesh(heights_terrain, mask_water)
+    ms_terrain = generate_terrain_mesh(heights_terrain, mask_terrain, offset_x, offset_y)
+    ms_roads = generate_terrain_mesh(heights_terrain, mask_roads, offset_x, offset_y)
+    ms_green = generate_terrain_mesh(heights_terrain, mask_green, offset_x, offset_y)
+    ms_water = generate_terrain_mesh(heights_terrain, mask_water, offset_x, offset_y)
 
     return ms_terrain, ms_roads, ms_green, ms_water
 
-def meshify_elevation(heights, heights_terrain):
+def meshify_elevation(heights, heights_terrain, offset_x, offset_y):
 
     # Vertices
-    vertices = generate_vertices(heights)
-    vertices_terrain = generate_vertices(heights_terrain)
+    vertices = generate_vertices(heights, offset_x, offset_y)
+    vertices_terrain = generate_vertices(heights_terrain, offset_x, offset_y)
     vertices = np.append(vertices, vertices_terrain, axis=0)
 
     n_rows, n_cols = heights.shape
@@ -108,11 +111,11 @@ def meshify_elevation(heights, heights_terrain):
     
     faces = np.empty((0,3), dtype=np.int32)
 
-    top_left_idxs = np.array([0, 1, 3])
-    bot_right_idxs = np.array([1, 2, 3])
+    top_left_idxs = np.array([3, 1, 0])
+    bot_right_idxs = np.array([3, 2, 1])
 
-    top_right_idxs = np.array([0, 2, 3])
-    bot_left_idxs = np.array([1, 2, 0])
+    top_right_idxs = np.array([3, 2, 0])
+    bot_left_idxs = np.array([0, 2, 1])
 
     # Grid facing up
     grid_up = np.logical_and(nw, sw)
@@ -136,7 +139,6 @@ def meshify_elevation(heights, heights_terrain):
 
     faces = np.append(faces, grid_up_nw_se_faces[:,top_left_idxs], axis=0)
     faces = np.append(faces, grid_up_nw_se_faces[:,bot_right_idxs], axis=0)
-
     faces = np.append(faces, grid_up_sw_ne_faces[:,top_right_idxs], axis=0)
     faces = np.append(faces, grid_up_sw_ne_faces[:,bot_left_idxs], axis=0)
 

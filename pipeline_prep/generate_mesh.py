@@ -57,8 +57,6 @@ def generate_mesh(file_name, dir_out):
     mask_water = mask_water == 1
     # mask_water = np.full(heights_terrain.shape, False)
 
-    mask_total = np.logical_or(mask_roads, mask_green)
-    mask_total = np.logical_or(mask_total, mask_water)
     ms_terrain, ms_roads, ms_green, ms_water = meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water)
 
     # Save terrain

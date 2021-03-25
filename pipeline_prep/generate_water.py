@@ -2,6 +2,7 @@ import numpy as np
 import geopandas
 import rasterio
 import rasterio.features
+from rasterio.crs import CRS
 import os
 from polygonize import polygonize
 from clip import clip
@@ -21,8 +22,9 @@ BOUNDS_N = 6180
 
 # Constants
 TILE_SIZE = 1000
-PIXEL_SIZE = 0.4 
-N_PIXELS = int(TILE_SIZE / PIXEL_SIZE)
+PIXEL_SIZE = 0.4
+N_PIXELS_1x1 = int(TILE_SIZE / PIXEL_SIZE)
+N_PIXELS_2x2 = int(TILE_SIZE / (PIXEL_SIZE * 2))
 
 FCLASSES_WATER = [
     "water",
@@ -44,6 +46,40 @@ def filter_by_fclass(dataframe, fclasses):
         geometry = row['geometry']
         df_out.loc[len(df_out)] = [geometry, fclass]
     return df_out
+
+def rasterize(dataframe, n_pixels, x, y, offset):
+    transform = rasterio.transform.from_bounds(
+        west = x * TILE_SIZE + offset,
+        east = (x+1) * TILE_SIZE + offset,
+        south = y * TILE_SIZE + offset,
+        north = (y+1) * TILE_SIZE + offset,
+        height = n_pixels,
+        width = n_pixels
+    )
+    pixels = rasterio.features.rasterize(
+        shapes=dataframe['geometry'],
+        out_shape=(n_pixels, n_pixels),
+        fill=0,
+        transform=transform,
+        all_touched=ALL_TOUCHED,
+        default_value=1,
+        dtype=np.uint8
+    )
+    return pixels, transform
+
+def save_raster(values, file_path, transform):
+    dataset = rasterio.open(
+        file_path,
+        mode="w",
+        driver="GTiff",
+        width=values.shape[1],
+        height=values.shape[0],
+        count=1,
+        crs=CRS.from_epsg(ETRS89_UTM32N),
+        transform=transform,
+        dtype=values.dtype
+    )
+    dataset.write(values, 1)
 
 def main():
 
@@ -81,45 +117,22 @@ def main():
                 print(f"skipping {file_name}")
                 continue
 
-            # Rasterize
-            transform = rasterio.transform.from_bounds(
-                west = x * TILE_SIZE + offset,
-                east = (x+1) * TILE_SIZE + offset,
-                south = y * TILE_SIZE + offset,
-                north = (y+1) * TILE_SIZE + offset,
-                height = N_PIXELS,
-                width = N_PIXELS
-            )
-            pixels = rasterio.features.rasterize(
-                shapes=df_tile['geometry'],
-                out_shape=(N_PIXELS, N_PIXELS),
-                fill=0,
-                transform=transform,
-                all_touched=ALL_TOUCHED,
-                default_value=1,
-                dtype=np.uint8
-            )
-
             # Save shp file
             file_name_shp = f"{file_name}.shp"
             file_path_shp = os.path.join(SHP_DIR_OUT_PATH, file_name_shp)
             df_tile.to_file(file_path_shp)
 
-            # Save tif file
             file_name_tif = f"{file_name}.tif"
-            file_path_tif = os.path.join(TIF_DIR_OUT_PATH, file_name_tif)
-            dataset_out = rasterio.open(
-                file_path_tif,
-                mode='w',
-                driver='GTiff',
-                height=N_PIXELS,
-                width=N_PIXELS,
-                count=1,
-                crs=df_tile.crs,
-                transform=transform,
-                dtype=np.uint8
-            )
-            dataset_out.write(pixels, 1)
+
+            # Rasterize and save 1x1 
+            file_path_1x1 = os.path.join(TIF_DIR_OUT_PATH, "1x1", file_name_tif)
+            pixels_1x1, transform_1x1 = rasterize(df_tile, N_PIXELS_1x1, x, y, offset)
+            save_raster(pixels_1x1, file_path_1x1, transform_1x1)
+            
+            # Rasterize and save 2x2 
+            file_path_2x2 = os.path.join(TIF_DIR_OUT_PATH, "2x2", file_name_tif)
+            pixels_2x2, transform_2x2 = rasterize(df_tile, N_PIXELS_2x2, x, y, offset)
+            save_raster(pixels_2x2, file_path_2x2, transform_2x2)
 
             print(f"saved {file_name}")
 
