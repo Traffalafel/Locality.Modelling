@@ -2,9 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pymeshlab
 
-PIXEL_SIZE = 0.4
-
-def generate_vertices(heights, offset_x, offset_y):
+def generate_vertices(heights, offset_x, offset_y, pixel_size):
     n_rows, n_cols = heights.shape
     # xs = np.arange(n_cols, 0, -1)
     xs = np.arange(n_cols)
@@ -14,15 +12,15 @@ def generate_vertices(heights, offset_x, offset_y):
     yy = yy.reshape((n_rows, n_cols, -1))
     vertices = np.append(xx, yy, axis=2)
     vertices = vertices.reshape((-1, 2))
-    vertices = vertices.astype(np.float32) * PIXEL_SIZE
-    offset = np.array([offset_x, offset_y]) * PIXEL_SIZE
+    vertices = vertices.astype(np.float32) * pixel_size
+    offset = np.array([offset_x, offset_y]) * pixel_size
     vertices += offset
     vertices = np.append(vertices, heights.reshape(-1, 1), axis=1)
     return vertices
 
-def generate_terrain_mesh(heights, mask, offset_x, offset_y):
+def generate_terrain_mesh(heights, mask, offset_x, offset_y, pixel_size):
 
-    vertices = generate_vertices(heights, offset_x, offset_y)
+    vertices = generate_vertices(heights, offset_x, offset_y, pixel_size)
 
     n_rows, n_cols = heights.shape
 
@@ -59,7 +57,7 @@ def generate_terrain_mesh(heights, mask, offset_x, offset_y):
     return ms
 
 
-def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water, offset_x, offset_y):
+def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water, offset_x, offset_y, pixel_size):
 
     n_rows, n_cols = heights_terrain.shape
 
@@ -76,22 +74,22 @@ def meshify_terrain(heights_terrain, mask_roads, mask_green, mask_water, offset_
 
     # Make sure masks do not overlap
     mask_water[mask_roads] = False
-    mask_water[mask_green] = False
+    mask_green[mask_water] = False
     mask_green[mask_roads] = False
     
     # Create meshes
-    ms_terrain = generate_terrain_mesh(heights_terrain, mask_terrain, offset_x, offset_y)
-    ms_roads = generate_terrain_mesh(heights_terrain, mask_roads, offset_x, offset_y)
-    ms_green = generate_terrain_mesh(heights_terrain, mask_green, offset_x, offset_y)
-    ms_water = generate_terrain_mesh(heights_terrain, mask_water, offset_x, offset_y)
+    ms_terrain = generate_terrain_mesh(heights_terrain, mask_terrain, offset_x, offset_y, pixel_size)
+    ms_roads = generate_terrain_mesh(heights_terrain, mask_roads, offset_x, offset_y, pixel_size)
+    ms_green = generate_terrain_mesh(heights_terrain, mask_green, offset_x, offset_y, pixel_size)
+    ms_water = generate_terrain_mesh(heights_terrain, mask_water, offset_x, offset_y, pixel_size)
 
     return ms_terrain, ms_roads, ms_green, ms_water
 
-def meshify_elevation(heights, heights_terrain, offset_x, offset_y):
+def meshify_elevation(heights, heights_terrain, offset_x, offset_y, pixel_size):
 
     # Vertices
-    vertices = generate_vertices(heights, offset_x, offset_y)
-    vertices_terrain = generate_vertices(heights_terrain, offset_x, offset_y)
+    vertices = generate_vertices(heights, offset_x, offset_y, pixel_size)
+    vertices_terrain = generate_vertices(heights_terrain, offset_x, offset_y, pixel_size)
     vertices = np.append(vertices, vertices_terrain, axis=0)
 
     n_rows, n_cols = heights.shape

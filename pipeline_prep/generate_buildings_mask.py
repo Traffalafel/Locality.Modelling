@@ -7,21 +7,21 @@ from polygonize import polygonize
 from clip import clip
 
 # Args
-FILE_IN_PATH = r"C:\data\GeoDanmark\buildings_cph.shp"
-SHP_DIR_OUT_PATH = r"C:\data\shapes\buildings"
-TIF_DIR_OUT_PATH = r"C:\data\masks\buildings"
+FILE_IN_PATH = r"D:\data\datasets\buildings_72_617.shp"
+SHP_DIR_OUT_PATH = r"D:\data\shapes\buildings"
+TIF_DIR_OUT_PATH = r"D:\data\masks\buildings"
 
 ALL_TOUCHED = False
 OFFSET_HALF = False
 
-BOUNDS_W = 723
-BOUNDS_E = 728
-BOUNDS_S = 6175
+BOUNDS_W = 720
+BOUNDS_E = 730
+BOUNDS_S = 6170
 BOUNDS_N = 6180
 
 # Constants
 TILE_SIZE = 1000
-PIXEL_SIZE = 0.4 
+PIXEL_SIZE = 0.4
 N_PIXELS = int(TILE_SIZE / PIXEL_SIZE)
 
 ETRS89_UTM32N = 25832
@@ -55,6 +55,9 @@ def main():
                 (y+1)*TILE_SIZE + offset
             )
             df_tile = clip(df, bounds)
+
+            # Filter out non-polygon rows
+            df_tile = df_tile[df_tile['geometry'].apply(lambda x: x.type == "Polygon")]
             
             if len(df_tile) == 0:
                 print(f"skipping {file_name}")

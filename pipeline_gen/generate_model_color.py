@@ -4,8 +4,8 @@ import rasterio
 from pyproj import Transformer
 from math import floor, ceil
 import os
-
-import matplotlib.pyplot as plt
+from pyproj import Transformer
+import pymeshlab
 
 from get_contents import get_contents
 from meshify import meshify_elevation, meshify_terrain
@@ -14,54 +14,79 @@ from meshify import meshify_elevation, meshify_terrain
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
 ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
 BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
-HEIGHTS_BOOST = 3
-MATERIALS = False
 
 # Constants
-AGGREG_SIZE = 1
 ORIGINAL_PIXEL_SIZE = 0.4
-PIXEL_SIZE = ORIGINAL_PIXEL_SIZE * AGGREG_SIZE
+WGS84 = 4326
+ETRS89_UTM_32N = 25832
 
 def flip(array):
     array = np.flip(array, axis=0)
     return array
 
-def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y):
+def generate_meshimport(tile_name, mesh_type, color_string):
+    s = ""
+    s += f'<MLMesh label="{tile_name}_{mesh_type}" visible="1" filename="{tile_name}_{mesh_type}.ply">\n'
+    s += f'<RenderingOption pointSize="3" wireWidth="1" wireColor="64 64 64 255" boxColor="234 234 234 255" pointColor="131 149 69 255" solidColor="{color_string} 255">100001000000000000000000000001011000001010100000000100111011110000001001</RenderingOption>\n'
+    s += "</MLMesh>\n"
+    return s
+
+def generate_meshlab_project(tiles_x, tiles_y, dir_out):
+
+    s = ""
+    s += "<!DOCTYPE MeshLabDocument>\n"
+    s += "<MeshLabProject>\n"
+    s += "<MeshGroup>\n"
+
+    for tile_x in range(tiles_x):
+        for tile_y in range(tiles_y):
+            tile_name = f"{tile_x+1}_{tile_y+1}"
+            s += generate_meshimport(tile_name, "buildings", "212 212 212")
+            s += generate_meshimport(tile_name, "green", "98 161 116")
+            s += generate_meshimport(tile_name, "roads", "77 77 77")
+            s += generate_meshimport(tile_name, "terrain", "152 147 141")
+            s += generate_meshimport(tile_name, "trees", "53 170 100")
+            s += generate_meshimport(tile_name, "water", "45 106 163")
+
+    s += "</MeshGroup>\n"
+    s += "<RasterGroup/>\n"
+    s += "</MeshLabProject>\n"
+
+    file_path = os.path.join(dir_out, "project.mlp")
+    with open(file_path, "w+") as fd:
+        fd.write(s) 
+
+def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size):
+
+    pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
+    aggreg_string = f"{aggreg_size}x{aggreg_size}"
 
     # Get heights
-    heights_terrain_dir_path = os.path.join(data_dir_path, "heights", "terrain", "1x1")
-    heights_terrain = get_contents(heights_terrain_dir_path, point_sw, point_nw, point_se, PIXEL_SIZE)
-    heights_terrain = flip(heights_terrain)
+    heights_terrain_dir_path = os.path.join(data_dir_path, "heights", "terrain", aggreg_string)
+    heights_terrain = get_contents(heights_terrain_dir_path, point_sw, point_nw, point_se, pixel_size)
     
-    heights_buildings_dir_path = os.path.join(data_dir_path, "heights", "buildings", "1x1")
-    heights_buildings = get_contents(heights_buildings_dir_path, point_sw, point_nw, point_se, PIXEL_SIZE)
-    heights_buildings = flip(heights_buildings)
+    heights_buildings_dir_path = os.path.join(data_dir_path, "heights", "buildings", aggreg_string)
+    heights_buildings = get_contents(heights_buildings_dir_path, point_sw, point_nw, point_se, pixel_size)
 
-    heights_trees_dir_path = os.path.join(data_dir_path, "heights", "trees", "1x1")
-    heights_trees = get_contents(heights_trees_dir_path, point_sw, point_nw, point_se, PIXEL_SIZE)
-    heights_trees = flip(heights_trees)
+    heights_trees_dir_path = os.path.join(data_dir_path, "heights", "trees", aggreg_string)
+    heights_trees = get_contents(heights_trees_dir_path, point_sw, point_nw, point_se, pixel_size)
     
     # Get masks
-    mask_roads_dir_path = os.path.join(data_dir_path, "masks", "roads", "1x1")
-    mask_roads = get_contents(mask_roads_dir_path, point_sw, point_nw, point_se, PIXEL_SIZE)
+    mask_roads_dir_path = os.path.join(data_dir_path, "masks", "roads", aggreg_string)
+    mask_roads = get_contents(mask_roads_dir_path, point_sw, point_nw, point_se, pixel_size)
     mask_roads = mask_roads == 1
-    mask_roads = flip(mask_roads)
    
-    mask_green_dir_path = os.path.join(data_dir_path, "masks", "green", "1x1")
-    mask_green = get_contents(mask_green_dir_path, point_sw, point_nw, point_se, PIXEL_SIZE)
+    mask_green_dir_path = os.path.join(data_dir_path, "masks", "green", aggreg_string)
+    mask_green = get_contents(mask_green_dir_path, point_sw, point_nw, point_se, pixel_size)
     mask_green = mask_green == 1
-    mask_green = flip(mask_green)
 
-    mask_water_dir_path = os.path.join(data_dir_path, "masks", "water", "1x1")
-    mask_water = get_contents(mask_water_dir_path, point_sw, point_nw, point_se, PIXEL_SIZE)
+    mask_water_dir_path = os.path.join(data_dir_path, "masks", "water", aggreg_string)
+    mask_water = get_contents(mask_water_dir_path, point_sw, point_nw, point_se, pixel_size)
     mask_water = mask_water == 1
-    mask_water = flip(mask_water)
 
     n_rows, n_cols = heights_terrain.shape
     len_row = n_rows // tiles_y
     len_col = n_cols // tiles_x
-
-    plt.imsave(r"C:\Users\traff\Desktop\img.png", heights_terrain[:n_rows//2,:n_cols//2])
 
     for tile_x in range(tiles_x):
         for tile_y in range(tiles_y):
@@ -84,157 +109,74 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
             mask_green_tile = mask_green[min_y:max_y, min_x:max_x]
             mask_water_tile = mask_water[min_y:max_y, min_x:max_x]
 
-            plt.imsave(f"C:\\Users\\traff\\Desktop\\{tile_name}.png", heights_terrain_tile)
-
-            ms_terrain, ms_roads, ms_green, ms_water = meshify_terrain(heights_terrain_tile, mask_roads_tile, mask_green_tile, mask_water_tile, offset_x, offset_y)
+            ms_terrain, ms_roads, ms_green, ms_water = meshify_terrain(heights_terrain_tile, mask_roads_tile, mask_green_tile, mask_water_tile, offset_x, offset_y, pixel_size)
 
             # Save terrain
-            file_terrain_out = f"{tile_name}_terrain.stl"
+            file_terrain_out = f"{tile_name}_terrain.ply"
             file_out_path = os.path.join(dir_out, file_terrain_out)
             ms_terrain.save_current_mesh(file_out_path)
             
             # Save roads
-            file_roads_out = f"{tile_name}_roads.stl"
+            file_roads_out = f"{tile_name}_roads.ply"
             file_out_path = os.path.join(dir_out, file_roads_out)
             ms_roads.save_current_mesh(file_out_path)
             
             # Save green
-            file_green_out = f"{tile_name}_green.stl"
+            file_green_out = f"{tile_name}_green.ply"
             file_out_path = os.path.join(dir_out, file_green_out)
             ms_green.save_current_mesh(file_out_path)
 
             # Save water
-            file_water_out = f"{tile_name}_water.stl"
+            file_water_out = f"{tile_name}_water.ply"
             file_out_path = os.path.join(dir_out, file_water_out)
             ms_water.save_current_mesh(file_out_path)
 
-            mesh_buildings = meshify_elevation(heights_buildings_tile, heights_terrain_tile, offset_x, offset_y)
+            ms_buildings = meshify_elevation(heights_buildings_tile, heights_terrain_tile, offset_x, offset_y, pixel_size)
 
             # Save buildings
-            file_buildings_out = f"{tile_name}_buildings.stl"
+            file_buildings_out = f"{tile_name}_buildings.ply"
             file_out_path = os.path.join(dir_out, file_buildings_out)
-            mesh_buildings.save_current_mesh(file_out_path)
+            ms_buildings.save_current_mesh(file_out_path)
 
-            mesh_trees = meshify_elevation(heights_trees_tile, heights_terrain_tile, offset_x, offset_y)
+            ms_trees = meshify_elevation(heights_trees_tile, heights_terrain_tile, offset_x, offset_y, pixel_size)
 
             # Save trees
-            file_trees_out = f"{tile_name}_trees.stl"
+            file_trees_out = f"{tile_name}_trees.ply"
             file_out_path = os.path.join(dir_out, file_trees_out)
-            mesh_trees.save_current_mesh(file_out_path)
+            ms_trees.save_current_mesh(file_out_path)
 
 def main():
-    
+
     data_dir = r"C:\data"
     dir_out = r"C:\Users\traff\source\repos\PrintCities.Modelling\data\models"
-    point_sw = np.array([723583, 6176488])
-    point_nw = np.array([723786, 6176880])
-    point_se = np.array([723892, 6176328])
-    # point_sw = np.array([723000, 6176000])
-    # point_nw = np.array([723000, 6176500])
-    # point_se = np.array([723500, 6176000])
-    tiles_x = 3
-    tiles_y = 3
+    aggreg_size = 2
 
-    generate_model_color(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y)
+    sw_lat = float(sys.argv[1])
+    sw_lng = float(sys.argv[2])
+    nw_lat = float(sys.argv[3])
+    nw_lng = float(sys.argv[4])
+    se_lat = float(sys.argv[5])
+    se_lng = float(sys.argv[6])
+    tiles_x = int(sys.argv[7])
+    tiles_y = int(sys.argv[8])
+
+    # Convert CRS
+    transformer = Transformer.from_crs(WGS84, ETRS89_UTM_32N)
+    
+    sw_x, sw_y = transformer.transform(sw_lat, sw_lng)
+    point_sw = np.array([sw_x, sw_y])
+    point_sw = point_sw.astype(np.uint32)
+
+    nw_x, nw_y = transformer.transform(nw_lat, nw_lng)
+    point_nw = np.array([nw_x, nw_y])
+    point_nw = point_nw.astype(np.uint32)
+    
+    se_x, se_y = transformer.transform(se_lat, se_lng)
+    point_se = np.array([se_x, se_y])
+    point_se = point_se.astype(np.uint32)
+
+    generate_model_color(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size)
+
+    generate_meshlab_project(tiles_x, tiles_y, dir_out)
 
 main()
-
-# def main():
-    
-#     # Parse args
-#     dir_out_path = sys.argv[1]
-#     name_out = sys.argv[2]
-#     sw_lat = float(sys.argv[3])
-#     sw_lng = float(sys.argv[4])
-#     size_metres = int(sys.argv[5])
-#     n_splits = int(sys.argv[6])
-
-#     # Compute coordinates in ETRS89 UTM 32N
-#     transformer = Transformer.from_crs(WGS84, ETRS89_UTM_32N)
-#     bound_w, bound_s = transformer.transform(sw_lat, sw_lng)
-#     bound_e = bound_w + size_metres
-#     bound_n = bound_s + size_metres
-#     bounds_heights = (bound_w, bound_e, bound_s, bound_n)
-
-#     print(f"W: {bound_w}")
-#     print(f"E: {bound_e}")
-#     print(f"S: {bound_s}")
-#     print(f"N: {bound_n}")
-
-#     # Get heights
-#     heights, _ = get_contents(HEIGHTS_TIFS_DIR_PATH, bounds_heights)
-
-#     # Heights boost
-#     for i in range(heights.shape[0]):
-#         for j in range(heights.shape[1]):
-#             heights[i][j] *= HEIGHTS_BOOST
-
-#     len_x, len_y = heights.shape
-
-#     if MATERIALS is True:
-
-#         # Create offsetted bounds for materials
-#         bound_materials_w = bound_w + (PIXEL_SIZE / 2)
-#         bound_materials_e = bound_e + (PIXEL_SIZE / 2)
-#         bound_materials_s = bound_s + (PIXEL_SIZE / 2)
-#         bound_materials_n = bound_n + (PIXEL_SIZE / 2)
-#         bounds_materials = (bound_materials_w, bound_materials_e, bound_materials_s, bound_materials_n)
-
-#         # Get roads
-#         # roads, _ = get_contents(ROADS_TIF_DIR_PATH, bounds_materials)
-#         # roads = roads.astype(np.int32)
-
-#         # Get buildings
-#         buildings, _ = get_contents(BUILDINGS_TIF_DIR_PATH, bounds_materials)
-#         buildings = buildings.astype(np.int32)
-#         buildings = buildings[1:,1:]
-#         # buildings = set_neigbors(buildings, 2, 1)
-
-#         # Create materials grid
-#         materials = np.zeros(shape=(len_x-1, len_y-1), dtype=np.int32)
-#         # materials[roads == 1] = 1
-#         materials[buildings == 1] = 2
-
-#         # Material names and mtllib
-#         materials_names = {
-#             0: "default",
-#             1: "road",
-#             2: "building"
-#         }
-#         mtllib = r".\materials.mtl"
-
-#     else:
-#         materials = None
-#         materials_names = None
-#         mtllib = None
-
-#     for row in range(n_splits):
-#         for col in range(n_splits):
-
-#             # Compute index bounds for heights
-#             min_x = floor(len_x/n_splits)*row
-#             max_x = floor(len_x/n_splits)*(row+1) + 1
-#             min_y = floor(len_y/n_splits)*col
-#             max_y = floor(len_y/n_splits)*(col+1) + 1
-
-#             # Compute index bounds for materials
-#             min_x_mat = floor(len_x/n_splits)*row
-#             max_x_mat = floor(len_x/n_splits)*(row+1)
-#             min_y_mat = floor(len_y/n_splits)*col
-#             max_y_mat = floor(len_y/n_splits)*(col+1)
-
-#             # Get tile and meshify
-#             tile = heights[min_x:max_x,min_y:max_y]
-
-#             if materials is not None:
-#                 tile_materials = materials[min_x_mat:max_x_mat,min_y_mat:max_y_mat]
-#             else:
-#                 tile_materials = None
-
-#             lines = meshify(tile, PIXEL_SIZE, MIN_DEPTH, tile_materials, materials_names, mtllib)
-
-#             # Save
-#             file_name = f"{name_out}_{row+1}_{col+1}.obj"
-#             file_out_path = join(dir_out_path, file_name)
-#             with open(file_out_path, 'w+') as fd:
-#                 fd.writelines(lines)

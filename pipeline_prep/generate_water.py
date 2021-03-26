@@ -8,16 +8,16 @@ from polygonize import polygonize
 from clip import clip
 
 # Args
-FILE_IN_PATH = r"C:\data\OSM\water_cph.shp"
+FILE_IN_PATH = r"D:\data\datasets\water_72_617.shp"
 SHP_DIR_OUT_PATH = r"C:\data\shapes\water"
 TIF_DIR_OUT_PATH = r"C:\data\masks\water"
 
 ALL_TOUCHED = True
 OFFSET_HALF = True
 
-BOUNDS_W = 723
-BOUNDS_E = 728
-BOUNDS_S = 6175
+BOUNDS_W = 720
+BOUNDS_E = 730
+BOUNDS_S = 6170
 BOUNDS_N = 6180
 
 # Constants

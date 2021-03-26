@@ -14,7 +14,4 @@ def clip(dataframe, bounds):
 
     df_out = geopandas.clip(dataframe, poly_gdf)
 
-    # Filter out non-polygon rows
-    # df_out = df_out[df_out['geometry'].apply(lambda x: x.type == "Polygon")]
-
     return df_out

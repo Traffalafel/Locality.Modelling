@@ -11,8 +11,8 @@ from interpolate import interpolate
 
 import matplotlib.pyplot as plt
 
-DIR_LIDAR = r"C:\data\lidar"
-DIR_MASKS_BUILDINGS = r"C:\data\masks\buildings"
+DIR_LIDAR = r"D:\data\lidar"
+DIR_MASKS_BUILDINGS = r"D:\data\masks\buildings"
 
 CLASS_NOISE = 1
 CLASS_GROUND = 2
@@ -124,14 +124,22 @@ def erode(heights):
     heights[horizontal_idxs] = -1
 
 def generate_DEM(file_name, dir_out):
+
+    file_path_buildings = os.path.join(dir_out, "buildings", "raw", f"{file_name}.tif")
+    if os.path.exists(file_path_buildings):
+        print(f"{file_name} already exists. Skipping...")
+        return
     
     dem_size = int(TILE_SIZE / PIXEL_SIZE)
     
     # Get buildings mask
     file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, file_name + ".tif")
-    dataset_mask_buildings = rasterio.open(file_mask_buildings_path)
-    mask_buildings = dataset_mask_buildings.read(1)
-    mask_buildings = mask_buildings.astype(np.uint8)
+    if os.path.exists(file_mask_buildings_path):
+        dataset_mask_buildings = rasterio.open(file_mask_buildings_path)
+        mask_buildings = dataset_mask_buildings.read(1)
+        mask_buildings = mask_buildings.astype(np.uint8)
+    else:
+        mask_buildings = np.zeros((dem_size, dem_size), dtype=np.uint8)
 
     # Dilate buildings mask
     kernel = np.ones((5,5))
@@ -144,7 +152,10 @@ def generate_DEM(file_name, dir_out):
     print("Buildings")
     las_buildings = pylas.read(file_las_path)
     las_buildings.points = las_buildings.points[las_buildings.classification == CLASS_BUILDINGS]
-    heights_buildings = create_heights(las_buildings, PIXEL_SIZE, dem_size)
+    if las_buildings.points.size != 0:
+        heights_buildings = create_heights(las_buildings, PIXEL_SIZE, dem_size)
+    else:
+        raise Exception("Not implemented (yet)")
 
     # Set buildings that have been falsely classified as vegetation
     falsely_classified = np.full((dem_size, dem_size), -1, np.float32)
@@ -206,12 +217,13 @@ def generate_DEM(file_name, dir_out):
     file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
     save_raster(heights_trees, file_path_trees, transform)
 
+    print(f"Saved {file_name}")
+
 
 def main():
-    dir_out = r"C:\data\heights"
+    dir_out = r"D:\data\heights"
     files_in = get_dir_file_names(DIR_LIDAR)
     for file_name in files_in:
-        print(f"{file_name}")
         generate_DEM(file_name, dir_out)
 
 main()

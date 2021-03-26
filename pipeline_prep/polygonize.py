@@ -11,7 +11,7 @@ WIDTH_MAPPING = {
     # Major roads
     'motorway': 20,
     'trunk': 18,
-    'primary': None,
+    'primary': 12,
     'secondary': 12,
     'tertiary': 10,
 

@@ -8,16 +8,16 @@ from polygonize import polygonize
 from clip import clip
 
 # Args
-FILE_IN_PATH = r"C:\data\OSM\roads_cph.shp"
-SHP_DIR_OUT_PATH = r"C:\data\shapes\roads"
-TIF_DIR_OUT_PATH = r"C:\data\masks\roads"
+FILE_IN_PATH = r"D:\data\datasets\roads_72_617.shp"
+SHP_DIR_OUT_PATH = r"D:\data\shapes\roads"
+TIF_DIR_OUT_PATH = r"D:\data\masks\roads"
 
 ALL_TOUCHED = False
 OFFSET_HALF = True
 
-BOUNDS_W = 723
-BOUNDS_E = 728
-BOUNDS_S = 6175
+BOUNDS_W = 720
+BOUNDS_E = 730
+BOUNDS_S = 6170
 BOUNDS_N = 6180
 
 # Constants
@@ -94,11 +94,11 @@ def main():
             )
             df_tile = clip(df, bounds)
             
+            df_tile = polygonize(df_tile, bounds)
+
             if len(df_tile) == 0:
                 print(f"skipping {file_name}")
                 continue
-        
-            df_tile = polygonize(df_tile, bounds)
 
             # Save shp file
             file_name_shp = f"{file_name}.shp"

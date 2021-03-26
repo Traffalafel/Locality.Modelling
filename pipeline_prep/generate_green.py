@@ -8,16 +8,16 @@ from polygonize import polygonize
 from clip import clip
 
 # Args
-FILE_IN_PATH = r"C:\data\OSM\landuse_cph.shp"
-SHP_DIR_OUT_PATH = r"C:\data\shapes\green"
-TIF_DIR_OUT_PATH = r"C:\data\masks\green"
+FILE_IN_PATH = r"D:\data\datasets\landuse_72_617.shp"
+SHP_DIR_OUT_PATH = r"D:\data\shapes\green"
+TIF_DIR_OUT_PATH = r"D:\data\masks\green"
 
 ALL_TOUCHED = True
 OFFSET_HALF = True
 
-BOUNDS_W = 723
-BOUNDS_E = 728
-BOUNDS_S = 6175
+BOUNDS_W = 720
+BOUNDS_E = 730
+BOUNDS_S = 6170
 BOUNDS_N = 6180
 
 # Constants
