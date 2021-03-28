@@ -114,24 +114,3 @@ def get_contents(heights_dir_path, point_sw, point_nw, point_se, pixel_size):
     heights = take_rectangle(heights, point_sw_local, point_nw_local, point_se_local, pixel_size)
 
     return heights
-
-# def test():
-
-#     point_sw = np.array([0, 20])
-#     point_se = np.array([20, 0])
-#     point_nw = np.array([40, 60])
-
-#     size_x = 60
-#     size_y = 60
-#     heights = np.arange(size_x * size_y)
-#     heights = heights.reshape((size_x, size_y))
-
-#     plt.imshow(heights)
-#     plt.show()
-
-#     heights = take_rectangle(heights, point_sw, point_nw, point_se)
-
-#     plt.imshow(heights)
-#     plt.show()
-    
-# test()
