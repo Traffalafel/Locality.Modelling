@@ -46,13 +46,19 @@ def get_tif_paths(bounds, tifs_dir_path):
 
     return file_paths
 
-def take_rectangle(heights, point_sw, point_nw, point_se, pixel_size):
-
+def compute_shape(point_sw, point_nw, point_se, pixel_size):
+    
     vec_sw_se = point_se - point_sw
     n_cols = int(np.linalg.norm(vec_sw_se) / pixel_size)
 
     vec_sw_nw = point_nw - point_sw
     n_rows = int(np.linalg.norm(vec_sw_nw) / pixel_size)
+
+    return n_rows, n_cols
+
+def take_rectangle(heights, point_sw, point_nw, point_se, pixel_size):
+
+    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
 
     xs = np.arange(n_cols)
     ys = np.arange(n_rows)
@@ -129,31 +135,3 @@ def get_contents(heights_dir_path, point_sw, point_nw, point_se, pixel_size):
 #     plt.show()
     
 # test()
-
-# def main():
-
-#     # Parse arguments
-#     tifs_dir_path = sys.argv[1]
-#     tif_out_path = sys.argv[2]
-#     bounds_w = sys.argv[3]
-#     bounds_e = sys.argv[4]
-#     bounds_s = sys.argv[5]
-#     bounds_n = sys.argv[6]
-#     bounds = (bounds_w, bounds_e, bounds_s, bounds_n)
-    
-#     heights, transform = get_region_heights(tifs_dir_path, bounds)
-
-#     dataset_out = rasterio.open(
-#         tif_out_path,
-#         mode='w',
-#         driver='GTiff',
-#         height=heights.shape[0],
-#         width=heights.shape[1],
-#         count=1,
-#         crs=ETRS89_UTM32_EPSG,
-#         transform=transform,
-#         dtype=heights.dtype
-#     )
-#     dataset_out.write(heights, 1)
-
-# main()

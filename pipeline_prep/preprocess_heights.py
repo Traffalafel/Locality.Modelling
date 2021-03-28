@@ -1,7 +1,6 @@
 import rasterio
 import os
 import cv2 as cv
-from remove_strings import remove_strings
 from aggregate import aggregate
 import numpy as np
 
@@ -13,6 +12,7 @@ BUILDINGS_DIR = r"C:\data\heights\buildings"
 TREES_DIR = r"C:\data\heights\trees"
 
 # Args
+NULL_HEIGHT = -1
 GAUSSIAN_SIZE = 3
 
 def get_dir_file_names(dir_path):
@@ -38,10 +38,10 @@ def save(heights, transform, file_path, crs):
 def blur(heights, heights_terrain, blur_size):
 
     # Blur
-    negative = cv.GaussianBlur(heights, (blur_size, blur_size), 0) == -1
+    negative = cv.GaussianBlur(heights, (blur_size, blur_size), 0) == NULL_HEIGHT
     heights_blurred = np.maximum(heights, heights_terrain)
     heights_blurred = cv.GaussianBlur(heights_blurred, (blur_size, blur_size), 0)
-    heights_blurred[negative] = -1
+    heights_blurred[negative] = NULL_HEIGHT
 
     return heights_blurred
 
@@ -51,16 +51,16 @@ def morph(heights, heights_terrain):
 
     # Open
     kernel = np.ones((3,3), np.float32) 
-    mask = heights_out != -1
+    mask = heights_out != NULL_HEIGHT
     mask = cv.morphologyEx(mask.astype(np.uint8), cv.MORPH_OPEN, kernel)
-    heights_out[mask == 0] = -1
+    heights_out[mask == 0] = NULL_HEIGHT
     heights_out[mask == 1] = heights[mask == 1]
 
     # Close
     kernel = np.ones((3,3), np.float32) 
-    mask = heights_out != -1
+    mask = heights_out != NULL_HEIGHT
     mask = cv.morphologyEx(mask.astype(np.uint8), cv.MORPH_CLOSE, kernel)
-    heights_out[mask == 0] = -1
+    heights_out[mask == 0] = NULL_HEIGHT
     heights_out[mask == 1] = heights[mask == 1]
 
     return heights_out
@@ -91,8 +91,8 @@ def preprocess_DEM(file_name, heights_dir):
     heights_trees = morph(heights_trees, heights_terrain)
 
     # Set pixels to max
-    heights_trees[heights_buildings >= heights_trees] = -1
-    heights_buildings[heights_buildings < heights_trees] = -1
+    heights_trees[heights_buildings >= heights_trees] = NULL_HEIGHT
+    heights_buildings[heights_buildings < heights_trees] = NULL_HEIGHT
 
     # Save buildings 1x1
     buildings_file_path_out = os.path.join(heights_dir, "buildings", "1x1", file_name)

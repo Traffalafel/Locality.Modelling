@@ -9,10 +9,6 @@ from os.path import join
 
 # ARGS
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
-ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
-BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
-HEIGHTS_BOOST = 3
-MATERIALS = False
 
 # Constants
 AGGREG_SIZE = 4
