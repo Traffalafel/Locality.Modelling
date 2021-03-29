@@ -174,21 +174,26 @@ def generate_trees(file_name):
 
     dem_size = int(TILE_SIZE / PIXEL_SIZE)
 
+    file_las_path = os.path.join(DIR_LIDAR, file_name + ".las")
+
     # Get terrain heights
     las_terrain = pylas.read(file_las_path)
     las_terrain.points = las_terrain.points[las_terrain.classification == CLASS_GROUND]
     las_terrain.points = las_terrain.points[las_terrain['number_of_returns'] == 1]
-    heights_terrain = create_heights(las_terrain, PIXEL_SIZE, dem_size)
+    if las_terrain.points.size != 0:
+        heights_terrain = create_heights(las_terrain, PIXEL_SIZE, dem_size)
+    else:
+        heights_terrain = np.full((dem_size, dem_size), NULL_VAL, dtype=np.float32)
     erode(heights_terrain)
 
     # Get trees heights
     las_trees = pylas.read(file_las_path)
     las_trees.points = las_trees.points[np.isin(las_trees.classification, CLASSES_TREES)]
+    las_trees.points = las_trees.points[las_trees['number_of_returns'] >= MIN_N_OF_RETURNS_TREES]
 
     if las_trees.points.size == 0:
         return None
 
-    las_trees.points = las_trees.points[las_trees['number_of_returns'] >= MIN_N_OF_RETURNS_TREES]
     heights_trees = create_heights(las_trees, PIXEL_SIZE, dem_size)
     
     # Interpolate trees
@@ -204,10 +209,7 @@ def generate_trees(file_name):
 
 def generate_DEM(file_name, dir_out):
     
-    print("Buildings")
     heights_buildings = generate_buildings(file_name)
-
-    print("Trees")
     heights_trees = generate_trees(file_name)
     
     # Create bounds
@@ -226,11 +228,15 @@ def generate_DEM(file_name, dir_out):
     if heights_buildings is not None:
         file_path_buildings = os.path.join(dir_out, "buildings", "raw", f"{file_name}.tif")
         save_raster(heights_buildings, file_path_buildings, transform)
+    else:
+        print(f"{file_name} has no buildings. Skipping...")
     
     # Save trees
-    if heights_trees.size is not None:
+    if heights_trees is not None:
         file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
         save_raster(heights_trees, file_path_trees, transform)
+    else:
+        print(f"{file_name} has no trees. Skipping...")
 
     print(f"{file_name}")
 
