@@ -1,135 +1,99 @@
 import numpy as np
 import sys
-from get_contents import get_contents
-from meshify import meshify
 import rasterio
 from pyproj import Transformer
-from math import floor, ceil
-from os.path import join
+import os
+import pymeshlab
+from get_contents import get_contents, compute_shape
+from meshify import meshify_elevation, meshify_terrain, meshify_surface
 
 # ARGS
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
+ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
+BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
 
 # Constants
-AGGREG_SIZE = 4
-MIN_DEPTH = 30
 ORIGINAL_PIXEL_SIZE = 0.4
-PIXEL_SIZE = ORIGINAL_PIXEL_SIZE * AGGREG_SIZE
+CRS_WGS84 = 4326
+CRS_ETRS89 = 25832
+NULL_HEIGHT = -1
+HEIGHTS_EXTRA = 20
+HEIGHTS_MULTIPLIER = 1.1
 
-WGS84 = 4326
-ETRS89_UTM_32N = 25832
+def get_heights(path, point_sw, point_nw, point_se, pixel_size):
+    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+    if os.path.exists(path):
+        return get_contents(path, point_sw, point_nw, point_se, pixel_size)
+    else:
+        print(f"Could not find any file for {path}. Using NULL_HEIGHT={NULL_HEIGHT} instead...")
+        return np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
 
-def set_neigbors(array, n_dist, new_val):
-    array_new = np.zeros(array.shape)
-    n_x,n_y = array.shape
-    for x in range(n_x):
-        lo_x = max(x-n_dist, 0)
-        hi_x = min(x+n_dist, n_x)
-        for y in range(n_y):
-            lo_y = max(y-n_dist, 0)
-            hi_y = min(y+n_dist, n_y)
-            if 1 in array[lo_x:hi_x,lo_y:hi_y]:
-                array_new[x,y] = new_val
-    return array_new
+def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size):
 
-def main():
-    
-    # Parse args
-    dir_out_path = sys.argv[1]
-    name_out = sys.argv[2]
-    sw_lat = float(sys.argv[3])
-    sw_lng = float(sys.argv[4])
-    size_metres = int(sys.argv[5])
-    n_splits = int(sys.argv[6])
-
-    # Compute coordinates in ETRS89 UTM 32N
-    transformer = Transformer.from_crs(WGS84, ETRS89_UTM_32N)
-    bound_w, bound_s = transformer.transform(sw_lat, sw_lng)
-    bound_e = bound_w + size_metres
-    bound_n = bound_s + size_metres
-    bounds_heights = (bound_w, bound_e, bound_s, bound_n)
-
-    print(f"W: {bound_w}")
-    print(f"E: {bound_e}")
-    print(f"S: {bound_s}")
-    print(f"N: {bound_n}")
+    pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
+    aggreg_string = f"{aggreg_size}x{aggreg_size}"
 
     # Get heights
-    heights, _ = get_contents(HEIGHTS_TIFS_DIR_PATH, bounds_heights)
+    heights_dir_path = os.path.join(data_dir_path, "heights", "surface", aggreg_string)
+    heights = get_heights(heights_dir_path, point_sw, point_nw, point_se, pixel_size)
 
-    # Heights boost
-    for i in range(heights.shape[0]):
-        for j in range(heights.shape[1]):
-            heights[i][j] *= HEIGHTS_BOOST
+    heights *= HEIGHTS_MULTIPLIER
+    heights += HEIGHTS_EXTRA
 
-    len_x, len_y = heights.shape
+    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+    n_rows_tile = n_rows // tiles_y
+    n_cols_tile = n_cols // tiles_x
 
-    if MATERIALS is True:
+    for tile_x in range(tiles_x):
+        for tile_y in range(tiles_y):
 
-        # Create offsetted bounds for materials
-        bound_materials_w = bound_w + (PIXEL_SIZE / 2)
-        bound_materials_e = bound_e + (PIXEL_SIZE / 2)
-        bound_materials_s = bound_s + (PIXEL_SIZE / 2)
-        bound_materials_n = bound_n + (PIXEL_SIZE / 2)
-        bounds_materials = (bound_materials_w, bound_materials_e, bound_materials_s, bound_materials_n)
+            tile_name = f"{tile_x+1}_{tile_y+1}"
+            print(tile_name)
 
-        # Get roads
-        # roads, _ = get_contents(ROADS_TIF_DIR_PATH, bounds_materials)
-        # roads = roads.astype(np.int32)
+            min_x = tile_x * n_cols_tile
+            max_x = (tile_x+1) * n_cols_tile + 1
+            min_y = tile_y * n_rows_tile
+            max_y = (tile_y+1) * n_rows_tile + 1
 
-        # Get buildings
-        buildings, _ = get_contents(BUILDINGS_TIF_DIR_PATH, bounds_materials)
-        buildings = buildings.astype(np.int32)
-        buildings = buildings[1:,1:]
-        # buildings = set_neigbors(buildings, 2, 1)
+            offset_x = min_x 
+            offset_y = min_y
 
-        # Create materials grid
-        materials = np.zeros(shape=(len_x-1, len_y-1), dtype=np.int32)
-        # materials[roads == 1] = 1
-        materials[buildings == 1] = 2
+            heights_tile = heights[min_y:max_y, min_x:max_x]
 
-        # Material names and mtllib
-        materials_names = {
-            0: "default",
-            1: "road",
-            2: "building"
-        }
-        mtllib = r".\materials.mtl"
+            ms = meshify_surface(heights_tile, offset_x, offset_y, pixel_size)
 
-    else:
-        materials = None
-        materials_names = None
-        mtllib = None
+            # Save mesh
+            file_out = f"{tile_name}.ply"
+            file_out_path = os.path.join(dir_out, file_out)
+            ms.save_current_mesh(file_out_path)
 
-    for row in range(n_splits):
-        for col in range(n_splits):
+def main():
 
-            # Compute index bounds for heights
-            min_x = floor(len_x/n_splits)*row
-            max_x = floor(len_x/n_splits)*(row+1) + 1
-            min_y = floor(len_y/n_splits)*col
-            max_y = floor(len_y/n_splits)*(col+1) + 1
+    data_dir = r"D:\data"
+    dir_out = r"C:\Users\traff\source\repos\Locality.Modelling\data\models"
+    aggreg_size = 2
 
-            # Compute index bounds for materials
-            min_x_mat = floor(len_x/n_splits)*row
-            max_x_mat = floor(len_x/n_splits)*(row+1)
-            min_y_mat = floor(len_y/n_splits)*col
-            max_y_mat = floor(len_y/n_splits)*(col+1)
+    sw_lat = float(sys.argv[1])
+    sw_lng = float(sys.argv[2])
+    ne_lat = float(sys.argv[3])
+    ne_lng = float(sys.argv[4])
+    tiles_x = int(sys.argv[5])
+    tiles_y = int(sys.argv[6])
 
-            # Get tile and meshify
-            tile = heights[min_x:max_x,min_y:max_y]
+    # Convert coordinates
+    transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
+    
+    sw_x, sw_y = transformer.transform(sw_lat, sw_lng)
+    point_sw = np.array([sw_x, sw_y])
+    point_sw = point_sw.astype(np.uint32)
 
-            if materials is not None:
-                tile_materials = materials[min_x_mat:max_x_mat,min_y_mat:max_y_mat]
-            else:
-                tile_materials = None
+    ne_x, ne_y = transformer.transform(ne_lat, ne_lng)
+    point_ne = np.array([ne_x, ne_y])
+    point_ne = point_ne.astype(np.uint32)
 
-            lines = meshify(tile, PIXEL_SIZE, MIN_DEPTH, tile_materials, materials_names, mtllib)
+    point_nw = np.array([sw_x, ne_y])
+    point_se = np.array([ne_x, sw_y])
 
-            # Save
-            file_name = f"{name_out}_{row+1}_{col+1}.obj"
-            file_out_path = join(dir_out_path, file_name)
-            with open(file_out_path, 'w+') as fd:
-                fd.writelines(lines)
+    generate_model_white(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size)
 
 main()

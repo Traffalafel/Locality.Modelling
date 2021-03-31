@@ -1,19 +1,21 @@
 import rasterio
 import os
 import cv2 as cv
-from aggregate import aggregate
 import numpy as np
 
 import matplotlib.pyplot as plt
 
 # Heights in
-TERRAIN_DIR = r"C:\data\heights\terrain"
-BUILDINGS_DIR = r"C:\data\heights\buildings"
-TREES_DIR = r"C:\data\heights\trees"
+TERRAIN_DIR = r"D:\data\heights\terrain"
+BUILDINGS_DIR = r"D:\data\heights\buildings"
+TREES_DIR = r"D:\data\heights\trees"
 
 # Args
 NULL_HEIGHT = -1
 GAUSSIAN_SIZE = 3
+ORIGINAL_PIXEL_SIZE = 0.4
+TILE_SIZE_M = 1000
+N_PIXELS = int(TILE_SIZE_M / ORIGINAL_PIXEL_SIZE)
 
 def get_dir_file_names(dir_path):
     contents = os.listdir(dir_path)
@@ -70,19 +72,25 @@ def preprocess_DEM(file_name, heights_dir):
     file_name += ".tif"
 
     # Get terrain
-    terrain_file_path = os.path.join(heights_dir, "terrain", "raw", file_name)
+    terrain_file_path = os.path.join(heights_dir, "terrain", "1x1", file_name)
     dataset_terrain = rasterio.open(terrain_file_path)
     heights_terrain = dataset_terrain.read(1)
     
     # Get buildings
     buildings_file_path = os.path.join(heights_dir, "buildings", "raw", file_name)
-    dataset_buildings = rasterio.open(buildings_file_path)
-    heights_buildings = dataset_buildings.read(1)
+    if os.path.exists(buildings_file_path):
+        dataset_buildings = rasterio.open(buildings_file_path)
+        heights_buildings = dataset_buildings.read(1)
+    else:
+        heights_buildings = np.full((N_PIXELS, N_PIXELS), NULL_HEIGHT, dtype=np.float32)
 
     # Get trees
     trees_file_path = os.path.join(heights_dir, "trees", "raw", file_name)
-    dataset_trees = rasterio.open(trees_file_path)
-    heights_trees = dataset_trees.read(1)
+    if os.path.exists(trees_file_path):
+        dataset_trees = rasterio.open(trees_file_path)
+        heights_trees = dataset_trees.read(1)
+    else:
+        heights_trees = np.full((N_PIXELS, N_PIXELS), NULL_HEIGHT, dtype=np.float32)
 
     # Clean
     heights_buildings = blur(heights_buildings, heights_terrain, GAUSSIAN_SIZE)
@@ -96,14 +104,14 @@ def preprocess_DEM(file_name, heights_dir):
 
     # Save buildings 1x1
     buildings_file_path_out = os.path.join(heights_dir, "buildings", "1x1", file_name)
-    save(heights_buildings, dataset_buildings.transform, buildings_file_path_out, dataset_buildings.crs)
+    save(heights_buildings, dataset_terrain.transform, buildings_file_path_out, dataset_terrain.crs)
     
     # Save trees 1x1
     trees_file_path_out = os.path.join(heights_dir, "trees", "1x1", file_name)
-    save(heights_trees, dataset_trees.transform, trees_file_path_out, dataset_trees.crs)
+    save(heights_trees, dataset_terrain.transform, trees_file_path_out, dataset_terrain.crs)
 
 def main():
-    heights_dir = r"C:\data\heights"
+    heights_dir = r"D:\data\heights"
     buildings_dir_raw = os.path.join(heights_dir, "buildings", "raw")
     files_in = get_dir_file_names(buildings_dir_raw)
     for file_name in files_in:

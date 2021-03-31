@@ -60,6 +60,9 @@ def take_rectangle(heights, point_sw, point_nw, point_se, pixel_size):
 
     n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
 
+    vec_sw_se = point_se - point_sw
+    vec_sw_nw = point_nw - point_sw
+
     xs = np.arange(n_cols)
     ys = np.arange(n_rows)
     xx, yy = np.meshgrid(xs, ys)

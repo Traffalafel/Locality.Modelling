@@ -70,6 +70,14 @@ def aggregate_DEM(file_name, heights_dir):
 
     file_name_raster = file_name + ".tif"
 
+    # Aggregate and save surface 2x2
+    surface_file_path = os.path.join(heights_dir, "surface", "1x1", file_name_raster)
+    dataset_surface = rasterio.open(surface_file_path)
+    heights_surface_1x1 = dataset_surface.read(1)
+    heights_surface_2x2, transform_surface_2x2 = aggregate(heights_surface_1x1, dataset_surface.bounds, 2, AGGREG_METHOD)
+    file_path_out_surface = os.path.join(heights_dir, "surface", "2x2", file_name_raster)
+    save(heights_surface_2x2, transform_surface_2x2, file_path_out_surface, dataset_surface.crs)
+    
     # Aggregate and save terrain 2x2
     terrain_file_path = os.path.join(heights_dir, "terrain", "1x1", file_name_raster)
     dataset_terrain = rasterio.open(terrain_file_path)
@@ -95,9 +103,9 @@ def aggregate_DEM(file_name, heights_dir):
     save(heights_trees_2x2, transform_trees_2x2, file_path_out_trees, dataset_trees.crs)
 
 def main():
-    heights_dir = r"C:\data\heights"
-    buildings_dir_1x1 = os.path.join(heights_dir, "buildings", "1x1")
-    files_in = get_dir_file_names(buildings_dir_1x1)
+    heights_dir = r"D:\data\heights"
+    terrain_dir_1x1 = os.path.join(heights_dir, "terrain", "1x1")
+    files_in = get_dir_file_names(terrain_dir_1x1)
     for file_name in files_in:
         print(f"{file_name}")
         aggregate_DEM(file_name, heights_dir)
