@@ -5,7 +5,7 @@ from pyproj import Transformer
 import os
 import pymeshlab
 from get_contents import get_contents, compute_shape
-from meshify import meshify_elevation, meshify_terrain, meshify_surface
+from meshify import meshify_surface
 
 # ARGS
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
@@ -13,12 +13,13 @@ ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
 BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
 
 # Constants
+OUTPUT_FORMAT = "stl"
 ORIGINAL_PIXEL_SIZE = 0.4
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
 NULL_HEIGHT = -1
 HEIGHTS_EXTRA = 20
-HEIGHTS_MULTIPLIER = 1.1
+HEIGHTS_MULTIPLIER = 1
 
 def get_heights(path, point_sw, point_nw, point_se, pixel_size):
     n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
@@ -28,7 +29,7 @@ def get_heights(path, point_sw, point_nw, point_se, pixel_size):
         print(f"Could not find any file for {path}. Using NULL_HEIGHT={NULL_HEIGHT} instead...")
         return np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
 
-def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size):
+def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name):
 
     pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
     aggreg_string = f"{aggreg_size}x{aggreg_size}"
@@ -48,7 +49,7 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
         for tile_y in range(tiles_y):
 
             tile_name = f"{tile_x+1}_{tile_y+1}"
-            print(tile_name)
+            print(f"Processing {tile_name}")
 
             min_x = tile_x * n_cols_tile
             max_x = (tile_x+1) * n_cols_tile + 1
@@ -63,7 +64,7 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
             ms = meshify_surface(heights_tile, offset_x, offset_y, pixel_size)
 
             # Save mesh
-            file_out = f"{tile_name}.ply"
+            file_out = f"{model_name} {tile_name}.{OUTPUT_FORMAT}"
             file_out_path = os.path.join(dir_out, file_out)
             ms.save_current_mesh(file_out_path)
 
@@ -71,29 +72,34 @@ def main():
 
     data_dir = r"D:\data"
     dir_out = r"C:\Users\traff\source\repos\Locality.Modelling\data\models"
-    aggreg_size = 2
 
-    sw_lat = float(sys.argv[1])
-    sw_lng = float(sys.argv[2])
-    ne_lat = float(sys.argv[3])
-    ne_lng = float(sys.argv[4])
+    if len(sys.argv) != 9:
+        print("Usage: <center_lat> <center_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name>")
+        return
+    
+    center_lat = float(sys.argv[1])
+    center_lng = float(sys.argv[2])
+    width = int(sys.argv[3])
+    height = int(sys.argv[4])
     tiles_x = int(sys.argv[5])
     tiles_y = int(sys.argv[6])
+    aggreg_size = int(sys.argv[7])
+    model_name = sys.argv[8]
 
     # Convert coordinates
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
-    
-    sw_x, sw_y = transformer.transform(sw_lat, sw_lng)
-    point_sw = np.array([sw_x, sw_y])
-    point_sw = point_sw.astype(np.uint32)
+    x, y = transformer.transform(center_lat, center_lng)
+    center = np.array([x, y])
 
-    ne_x, ne_y = transformer.transform(ne_lat, ne_lng)
-    point_ne = np.array([ne_x, ne_y])
-    point_ne = point_ne.astype(np.uint32)
+    # TODO: compute point from distance AND angle
+    w = int(x - width/2)
+    e = int(x + width/2)
+    s = int(y - height/2)
+    n = int(y + height/2)
+    point_sw = np.array([w, s])
+    point_nw = np.array([w, n])
+    point_se = np.array([e, s])
 
-    point_nw = np.array([sw_x, ne_y])
-    point_se = np.array([ne_x, sw_y])
-
-    generate_model_white(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size)
+    generate_model_white(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name)
 
 main()

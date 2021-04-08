@@ -149,7 +149,7 @@ def generate_buildings(file_name):
     las_buildings.points = las_buildings.points[las_buildings.classification == CLASS_BUILDINGS]
     
     if las_buildings.points.size == 0:
-        return None
+        return np.full((dem_size, dem_size), NULL_VAL, dtype=np.float32)
     
     heights_buildings = create_heights(las_buildings, PIXEL_SIZE, dem_size)
 
@@ -192,7 +192,7 @@ def generate_trees(file_name):
     las_trees.points = las_trees.points[las_trees['number_of_returns'] >= MIN_N_OF_RETURNS_TREES]
 
     if las_trees.points.size == 0:
-        return None
+        return np.full((dem_size, dem_size), NULL_VAL, dtype=np.float32)
 
     heights_trees = create_heights(las_trees, PIXEL_SIZE, dem_size)
     
@@ -225,20 +225,12 @@ def generate_DEM(file_name, dir_out):
     )
 
     # Save buildings
-    if heights_buildings is not None:
-        file_path_buildings = os.path.join(dir_out, "buildings", "raw", f"{file_name}.tif")
-        save_raster(heights_buildings, file_path_buildings, transform)
-    else:
-        print(f"{file_name} has no buildings. Skipping...")
+    file_path_buildings = os.path.join(dir_out, "buildings", "raw", f"{file_name}.tif")
+    save_raster(heights_buildings, file_path_buildings, transform)
     
     # Save trees
-    if heights_trees is not None:
-        file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
-        save_raster(heights_trees, file_path_trees, transform)
-    else:
-        print(f"{file_name} has no trees. Skipping...")
-
-    print(f"{file_name}")
+    file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
+    save_raster(heights_trees, file_path_trees, transform)
 
 def main():
     dir_out = r"D:\data\heights"
@@ -250,6 +242,7 @@ def main():
             print(f"{file_name} already exists. Skipping...")
             continue
         
+        print(f"{file_name}")
         generate_DEM(file_name, dir_out)
 
 main()

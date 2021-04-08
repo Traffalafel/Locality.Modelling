@@ -9,8 +9,8 @@ from clip import clip
 
 # Args
 FILE_IN_PATH = r"D:\data\datasets\water_72_617.shp"
-SHP_DIR_OUT_PATH = r"C:\data\shapes\water"
-TIF_DIR_OUT_PATH = r"C:\data\masks\water"
+SHP_DIR_OUT_PATH = r"D:\data\shapes\water"
+TIF_DIR_OUT_PATH = r"D:\data\masks\water"
 
 ALL_TOUCHED = True
 OFFSET_HALF = True

@@ -5,7 +5,7 @@ from pyproj import Transformer
 import os
 import pymeshlab
 from get_contents import get_contents, compute_shape
-from meshify import meshify_elevation, meshify_terrain
+from meshify import meshify_color
 
 # ARGS
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
@@ -13,6 +13,7 @@ ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
 BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
 
 # Constants
+OUTPUT_FORMAT = "stl"
 ORIGINAL_PIXEL_SIZE = 0.4
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
@@ -20,7 +21,7 @@ NULL_HEIGHT = -1
 
 def generate_meshimport(tile_name, mesh_type, color_string):
 
-    s = f'<MLMesh label="{tile_name}_{mesh_type}" visible="1" filename="{tile_name}_{mesh_type}.ply">\n'
+    s = f'<MLMesh label="{tile_name}_{mesh_type}" visible="1" filename="{tile_name}_{mesh_type}.{OUTPUT_FORMAT}">\n'
     s += f'<RenderingOption pointSize="3" wireWidth="1" wireColor="64 64 64 255" boxColor="234 234 234 255" pointColor="131 149 69 255" solidColor="{color_string} 255">100001000000000000000000000001011000001010100000000100111011110000001001</RenderingOption>\n'
     s += "</MLMesh>\n"
     return s
@@ -64,7 +65,7 @@ def get_mask(path, point_sw, point_nw, point_se, pixel_size):
     else:
         return np.full((n_rows, n_cols), False, dtype=bool)
 
-def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size):
+def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name):
 
     pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
     aggreg_string = f"{aggreg_size}x{aggreg_size}"
@@ -114,74 +115,85 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
             mask_green_tile = mask_green[min_y:max_y, min_x:max_x]
             mask_water_tile = mask_water[min_y:max_y, min_x:max_x]
 
-            ms_terrain, ms_roads, ms_green, ms_water = meshify_terrain(heights_terrain_tile, mask_roads_tile, mask_green_tile, mask_water_tile, offset_x, offset_y, pixel_size)
+            ms_terrain, ms_roads, ms_green, ms_water = meshify_color(
+                heights_terrain_tile,
+                heights_buildings_tile,
+                heights_trees_tile,
+                mask_roads_tile, 
+                mask_green_tile, 
+                mask_water_tile, 
+                offset_x, 
+                offset_y, 
+                pixel_size
+            )
 
             # Save terrain
-            file_terrain_out = f"{tile_name}_terrain.ply"
+            file_terrain_out = f"{tile_name}_terrain.{OUTPUT_FORMAT}"
             file_out_path = os.path.join(dir_out, file_terrain_out)
             ms_terrain.save_current_mesh(file_out_path)
             
             # Save roads
-            file_roads_out = f"{tile_name}_roads.ply"
+            file_roads_out = f"{tile_name}_roads.{OUTPUT_FORMAT}"
             file_out_path = os.path.join(dir_out, file_roads_out)
             ms_roads.save_current_mesh(file_out_path)
             
             # Save green
-            file_green_out = f"{tile_name}_green.ply"
+            file_green_out = f"{tile_name}_green.{OUTPUT_FORMAT}"
             file_out_path = os.path.join(dir_out, file_green_out)
             ms_green.save_current_mesh(file_out_path)
 
             # Save water
-            file_water_out = f"{tile_name}_water.ply"
+            file_water_out = f"{tile_name}_water.{OUTPUT_FORMAT}"
             file_out_path = os.path.join(dir_out, file_water_out)
             ms_water.save_current_mesh(file_out_path)
 
-            ms_buildings = meshify_elevation(heights_buildings_tile, heights_terrain_tile, offset_x, offset_y, pixel_size)
+            # ms_buildings = meshify_elevation(heights_buildings_tile, heights_terrain_tile, offset_x, offset_y, pixel_size)
 
-            # Save buildings
-            file_buildings_out = f"{tile_name}_buildings.ply"
-            file_out_path = os.path.join(dir_out, file_buildings_out)
-            ms_buildings.save_current_mesh(file_out_path)
+            # # Save buildings
+            # file_buildings_out = f"{tile_name}_buildings.{OUTPUT_FORMAT}"
+            # file_out_path = os.path.join(dir_out, file_buildings_out)
+            # ms_buildings.save_current_mesh(file_out_path)
 
-            ms_trees = meshify_elevation(heights_trees_tile, heights_terrain_tile, offset_x, offset_y, pixel_size)
+            # ms_trees = meshify_elevation(heights_trees_tile, heights_terrain_tile, offset_x, offset_y, pixel_size)
 
-            # Save trees
-            file_trees_out = f"{tile_name}_trees.ply"
-            file_out_path = os.path.join(dir_out, file_trees_out)
-            ms_trees.save_current_mesh(file_out_path)
+            # # Save trees
+            # file_trees_out = f"{tile_name}_trees.{OUTPUT_FORMAT}"
+            # file_out_path = os.path.join(dir_out, file_trees_out)
+            # ms_trees.save_current_mesh(file_out_path)
 
 def main():
 
-    data_dir = r"C:\data"
-    dir_out = r"C:\Users\traff\source\repos\PrintCities.Modelling\data\models"
-    aggreg_size = 2
+    data_dir = r"D:\data"
+    dir_out = r"C:\Users\traff\source\repos\Locality.Modelling\data\models"
 
-    sw_lat = float(sys.argv[1])
-    sw_lng = float(sys.argv[2])
-    nw_lat = float(sys.argv[3])
-    nw_lng = float(sys.argv[4])
-    se_lat = float(sys.argv[5])
-    se_lng = float(sys.argv[6])
-    tiles_x = int(sys.argv[7])
-    tiles_y = int(sys.argv[8])
+    if len(sys.argv) != 9:
+        print("Usage: <center_lat> <center_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name>")
+        return
+    
+    center_lat = float(sys.argv[1])
+    center_lng = float(sys.argv[2])
+    width = int(sys.argv[3])
+    height = int(sys.argv[4])
+    tiles_x = int(sys.argv[5])
+    tiles_y = int(sys.argv[6])
+    aggreg_size = int(sys.argv[7])
+    model_name = sys.argv[8]
 
     # Convert coordinates
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
-    
-    sw_x, sw_y = transformer.transform(sw_lat, sw_lng)
-    point_sw = np.array([sw_x, sw_y])
-    point_sw = point_sw.astype(np.uint32)
+    x, y = transformer.transform(center_lat, center_lng)
+    center = np.array([x, y])
 
-    nw_x, nw_y = transformer.transform(nw_lat, nw_lng)
-    point_nw = np.array([nw_x, nw_y])
-    point_nw = point_nw.astype(np.uint32)
-    
-    se_x, se_y = transformer.transform(se_lat, se_lng)
-    point_se = np.array([se_x, se_y])
-    point_se = point_se.astype(np.uint32)
+    # TODO: compute point from distance AND angle
+    w = int(x - width/2)
+    e = int(x + width/2)
+    s = int(y - height/2)
+    n = int(y + height/2)
+    point_sw = np.array([w, s])
+    point_nw = np.array([w, n])
+    point_se = np.array([e, s])
 
-    generate_model_color(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size)
-
+    generate_model_color(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name)
     generate_meshlab_project(dir_out, tiles_x, tiles_y)
 
 main()
