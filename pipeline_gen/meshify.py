@@ -48,7 +48,10 @@ def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads,
     heights_terrain_expanded[mask_terrain_expanded] = heights_terrain[mask_terrain_expanded]
     ms_terrain = meshify_terrain(heights_terrain_expanded, heights_bot, mask_terrain, offset_x, offset_y, pixel_size)
 
-    return ms_terrain, ms_roads, ms_green, ms_water
+    ms_buildings = meshify_buildings_trees(heights_buildings, heights_terrain, offset_x, offset_y, pixel_size)
+    ms_trees = meshify_buildings_trees(heights_trees, heights_terrain, offset_x, offset_y, pixel_size)
+
+    return ms_terrain, ms_roads, ms_green, ms_water, ms_buildings, ms_trees
 
 def meshify_terrain(heights_top, heights_bot, mask, offset_x, offset_y, pixel_size):
 
@@ -573,10 +576,10 @@ def meshify_buildings_trees(heights_top, heights_bot, offset_x, offset_y, pixel_
     faces = np.append(faces, vertical_w_faces[:,bot_right_idxs], axis=0)
 
     # Index arrays for corners
-    top_idxs = np.array([0, 1, 4])
-    bot_idxs = np.array([3, 2, 5])
-    side_idxs_1 = np.array([1, 2, 4])
-    side_idxs_2 = np.array([2, 3, 4])
+    top_idxs = np.array([4, 1, 0])
+    bot_idxs = np.array([5, 2, 3])
+    side_idxs_1 = np.array([4, 2, 1])
+    side_idxs_2 = np.array([4, 3, 2])
 
     # SW-NE-NW
     sw_ne_nw = np.logical_and(sw, ne)
@@ -642,6 +645,66 @@ def meshify_buildings_trees(heights_top, heights_bot, offset_x, offset_y, pixel_
     faces = np.append(faces, nw_se_sw_faces[:,bot_idxs], axis=0)
     faces = np.append(faces, nw_se_sw_faces[:,side_idxs_1], axis=0)
     faces = np.append(faces, nw_se_sw_faces[:,side_idxs_2], axis=0)
+
+    # Sideways faces - upwards
+    left = heights_top[0,:n_cols-1] != NULL_HEIGHT
+    right = heights_top[0,1:] != NULL_HEIGHT
+    idxs_sideways_n = np.logical_and(left, right)
+    faces_sideways_n = np.arange(n_cols-1, dtype=np.float32)
+    faces_sideways_n = faces_sideways_n[idxs_sideways_n]
+    faces_sideways_n = faces_sideways_n.reshape((-1, 1))
+    faces_sideways_n = np.tile(faces_sideways_n, 4)
+    faces_sideways_n[:,0] += 0
+    faces_sideways_n[:,1] += 1
+    faces_sideways_n[:,2] += dem_size + 1
+    faces_sideways_n[:,3] += dem_size
+    faces = np.append(faces, faces_sideways_n[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_sideways_n[:,bot_left_idxs], axis=0)
+
+    # Sideways faces - southwards
+    left = heights_top[n_rows-1,:n_cols-1] != NULL_HEIGHT
+    right = heights_top[n_rows-1,1:] != NULL_HEIGHT
+    idxs_sideways_s = np.logical_and(left, right)
+    faces_sideways_s = np.arange(n_cols-1, dtype=np.float32)
+    faces_sideways_s = faces_sideways_s[idxs_sideways_s]
+    faces_sideways_s = faces_sideways_s.reshape((-1, 1))
+    faces_sideways_s = np.tile(faces_sideways_s, 4)
+    faces_sideways_s[:,0] += dem_size - n_cols
+    faces_sideways_s[:,1] += 2*dem_size - n_cols
+    faces_sideways_s[:,2] += 2*dem_size - n_cols + 1
+    faces_sideways_s[:,3] += dem_size - n_cols + 1
+    faces = np.append(faces, faces_sideways_s[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_sideways_s[:,bot_left_idxs], axis=0)
+
+    # Sideways faces - left
+    top = heights_top[:n_rows-1,0] != NULL_HEIGHT
+    bot = heights_top[1:,0] != NULL_HEIGHT
+    idxs_sideways_w = np.logical_and(top, bot)
+    faces_sideways_w = np.arange(0, dem_size-n_cols, n_cols, dtype=np.float32)
+    faces_sideways_w = faces_sideways_w[idxs_sideways_w]
+    faces_sideways_w = faces_sideways_w.reshape((-1, 1))
+    faces_sideways_w = np.tile(faces_sideways_w, 4)
+    faces_sideways_w[:,0] += 0
+    faces_sideways_w[:,1] += dem_size
+    faces_sideways_w[:,2] += dem_size + n_cols
+    faces_sideways_w[:,3] += n_cols
+    faces = np.append(faces, faces_sideways_w[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_sideways_w[:,bot_left_idxs], axis=0)
+
+    # Sideways faces - right
+    top = heights_top[:n_rows-1,n_cols-1] != NULL_HEIGHT
+    bot = heights_top[1:,n_cols-1] != NULL_HEIGHT
+    idxs_sideways_e = np.logical_and(top, bot)
+    faces_sideways_e = np.arange(0, dem_size-n_cols, n_cols, dtype=np.float32)
+    faces_sideways_e = faces_sideways_e[idxs_sideways_e]
+    faces_sideways_e = faces_sideways_e.reshape((-1, 1))
+    faces_sideways_e = np.tile(faces_sideways_e, 4)
+    faces_sideways_e[:,0] += n_cols - 1
+    faces_sideways_e[:,1] += 2*n_cols - 1
+    faces_sideways_e[:,2] += dem_size + 2*n_cols - 1
+    faces_sideways_e[:,3] += dem_size + n_cols - 1
+    faces = np.append(faces, faces_sideways_e[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_sideways_e[:,bot_left_idxs], axis=0)
 
     mesh = pymeshlab.Mesh(
         vertex_matrix = vertices,

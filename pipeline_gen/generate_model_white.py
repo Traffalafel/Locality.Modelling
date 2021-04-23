@@ -13,12 +13,12 @@ ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
 BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
 
 # Constants
-OUTPUT_FORMAT = "stl"
+DEFAULT_OUTPUT_FORMAT = "stl"
 ORIGINAL_PIXEL_SIZE = 0.4
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
 NULL_HEIGHT = -1
-HEIGHTS_EXTRA = 20
+HEIGHTS_EXTRA = 5
 HEIGHTS_MULTIPLIER = 1
 
 def get_heights(path, point_sw, point_nw, point_se, pixel_size):
@@ -29,7 +29,7 @@ def get_heights(path, point_sw, point_nw, point_se, pixel_size):
         print(f"Could not find any file for {path}. Using NULL_HEIGHT={NULL_HEIGHT} instead...")
         return np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
 
-def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name):
+def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format):
 
     pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
     aggreg_string = f"{aggreg_size}x{aggreg_size}"
@@ -64,7 +64,7 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
             ms = meshify_surface(heights_tile, offset_x, offset_y, pixel_size)
 
             # Save mesh
-            file_out = f"{model_name} {tile_name}.{OUTPUT_FORMAT}"
+            file_out = f"{model_name} {tile_name}.{output_format}"
             file_out_path = os.path.join(dir_out, file_out)
             ms.save_current_mesh(file_out_path)
 
@@ -73,7 +73,7 @@ def main():
     data_dir = r"D:\data"
     dir_out = r"C:\Users\traff\source\repos\Locality.Modelling\data\models"
 
-    if len(sys.argv) != 9:
+    if len(sys.argv) < 9:
         print("Usage: <center_lat> <center_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name>")
         return
     
@@ -85,6 +85,11 @@ def main():
     tiles_y = int(sys.argv[6])
     aggreg_size = int(sys.argv[7])
     model_name = sys.argv[8]
+
+    if len(sys.argv) == 10:
+        output_format = sys.argv[9]
+    else:
+        output_format = DEFAULT_OUTPUT_FORMAT
 
     # Convert coordinates
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
@@ -100,6 +105,6 @@ def main():
     point_nw = np.array([w, n])
     point_se = np.array([e, s])
 
-    generate_model_white(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name)
+    generate_model_white(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format)
 
 main()

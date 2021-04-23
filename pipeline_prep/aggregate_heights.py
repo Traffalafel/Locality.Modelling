@@ -2,6 +2,7 @@ import numpy as np
 import rasterio
 import rasterio.transform
 import os
+import sys
 
 AGGREG_METHOD = "max"
 
@@ -80,6 +81,10 @@ def aggregate_DEMs(dir_in_path, dir_out_path):
     for file_name in file_names:
 
         file_name_raster = file_name + ".tif"
+        file_path_out = os.path.join(dir_out_path, file_name_raster)
+        if os.path.exists(file_path_out):
+            print(f"Output {file_path_out} already exists, skipping")
+            continue
 
         file_in_path = os.path.join(dir_in_path, file_name_raster)
         dataset = rasterio.open(file_in_path)
@@ -88,26 +93,14 @@ def aggregate_DEMs(dir_in_path, dir_out_path):
         file_path_out = os.path.join(dir_out_path, file_name_raster)
         save(heights_2x2, transform_2x2, file_path_out, dataset.crs)
 
-        print(f"{file_in_path}")
+        print(f"{file_in_path} aggregated")
     
 def main():
     
-    heights_dir = r"D:\data\heights"
+    heights_dir_path = sys.argv[1]
 
-    buildings_dir_1x1 = os.path.join(heights_dir, "buildings", "1x1")
-    buildings_dir_2x2 = os.path.join(heights_dir, "buildings", "2x2")
+    buildings_dir_1x1 = os.path.join(heights_dir_path, "1x1")
+    buildings_dir_2x2 = os.path.join(heights_dir_path, "2x2")
     aggregate_DEMs(buildings_dir_1x1, buildings_dir_2x2)
-
-    terrain_dir_1x1 = os.path.join(heights_dir, "terrain", "1x1")
-    terrain_dir_2x2 = os.path.join(heights_dir, "terrain", "2x2")
-    aggregate_DEMs(terrain_dir_1x1, terrain_dir_2x2)
-    
-    surface_dir_1x1 = os.path.join(heights_dir, "surface", "1x1")
-    surface_dir_2x2 = os.path.join(heights_dir, "surface", "2x2")
-    aggregate_DEMs(surface_dir_1x1, surface_dir_2x2)
-
-    trees_dir_1x1 = os.path.join(heights_dir, "trees", "1x1")
-    trees_dir_2x2 = os.path.join(heights_dir, "trees", "2x2")
-    aggregate_DEMs(trees_dir_1x1, trees_dir_2x2)
 
 main()
