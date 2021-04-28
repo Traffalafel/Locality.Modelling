@@ -5,7 +5,7 @@ from pyproj import Transformer
 import os
 import pymeshlab
 from get_contents import get_contents, compute_shape
-from meshify import meshify_surface
+from meshify import meshify_white
 
 # ARGS
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
@@ -18,7 +18,7 @@ ORIGINAL_PIXEL_SIZE = 0.4
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
 NULL_HEIGHT = -1
-HEIGHTS_EXTRA = 5
+HEIGHT_OFFSET = 2
 HEIGHTS_MULTIPLIER = 1
 
 def get_heights(path, point_sw, point_nw, point_se, pixel_size):
@@ -38,8 +38,12 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
     heights_dir_path = os.path.join(data_dir_path, "heights", "surface", aggreg_string)
     heights = get_heights(heights_dir_path, point_sw, point_nw, point_se, pixel_size)
 
+    height_min = np.min(heights)
+    print(height_min)
+    heights -= height_min
+    print(np.min(heights))
     heights *= HEIGHTS_MULTIPLIER
-    heights += HEIGHTS_EXTRA
+    heights += HEIGHT_OFFSET
 
     n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
     n_rows_tile = n_rows // tiles_y
@@ -61,7 +65,7 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
 
             heights_tile = heights[min_y:max_y, min_x:max_x]
 
-            ms = meshify_surface(heights_tile, offset_x, offset_y, pixel_size)
+            ms = meshify_white(heights_tile, offset_x, offset_y, pixel_size)
 
             # Save mesh
             file_out = f"{model_name} {tile_name}.{output_format}"

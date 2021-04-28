@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pymeshlab
 
-BOTTOM_HEIGHT = -10
+BOTTOM_HEIGHT = 0
 NULL_HEIGHT = -1
 MIN_HEIGHT_OFFSET = 1
 
@@ -716,7 +716,7 @@ def meshify_buildings_trees(heights_top, heights_bot, offset_x, offset_y, pixel_
 
     return ms
 
-def meshify_surface(heights, offset_x, offset_y, pixel_size):
+def meshify_white(heights, offset_x, offset_y, pixel_size):
 
     n_rows, n_cols = heights.shape
     dem_size = n_rows * n_cols
