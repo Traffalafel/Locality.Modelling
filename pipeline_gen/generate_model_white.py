@@ -18,7 +18,7 @@ ORIGINAL_PIXEL_SIZE = 0.4
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
 NULL_HEIGHT = -1
-HEIGHT_OFFSET = 2
+HEIGHT_OFFSET = 8
 HEIGHTS_MULTIPLIER = 1
 
 def get_heights(path, point_sw, point_nw, point_se, pixel_size):
@@ -39,9 +39,7 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
     heights = get_heights(heights_dir_path, point_sw, point_nw, point_se, pixel_size)
 
     height_min = np.min(heights)
-    print(height_min)
     heights -= height_min
-    print(np.min(heights))
     heights *= HEIGHTS_MULTIPLIER
     heights += HEIGHT_OFFSET
 

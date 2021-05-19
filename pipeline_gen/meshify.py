@@ -2,9 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pymeshlab
 
-BOTTOM_HEIGHT = 0
 NULL_HEIGHT = -1
-MIN_HEIGHT_OFFSET = 1
+GLOBAL_BOTTOM_HEIGHT = 0
 
 def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads, mask_green, mask_water, offset_x, offset_y, pixel_size):
 
@@ -25,43 +24,152 @@ def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads,
     mask_green[mask_water] = False
     mask_green[mask_roads] = False
 
-    bot_height = heights_terrain.min() - MIN_HEIGHT_OFFSET
-    heights_bot = np.full((n_rows, n_cols), bot_height, dtype=np.float32)
+    min_height = heights_terrain.min()
+
+    intermediate_bottom_height = (min_height - GLOBAL_BOTTOM_HEIGHT) / 2
+    intermediate_bottom_heights = np.full((n_rows, n_cols), intermediate_bottom_height, dtype=np.float32)
 
     heights_roads = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_roads = expand_mask(mask_roads)
     heights_roads[mask_roads] = heights_terrain[mask_roads]
-    ms_roads = meshify_terrain_features(heights_roads, heights_bot, offset_x, offset_y, pixel_size)
+    ms_roads = meshify_terrain_features(heights_roads, intermediate_bottom_heights, offset_x, offset_y, pixel_size)
 
     heights_green = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_green = expand_mask(mask_green)
     heights_green[mask_green] = heights_terrain[mask_green]
-    ms_green = meshify_terrain_features(heights_green, heights_bot, offset_x, offset_y, pixel_size)
+    ms_green = meshify_terrain_features(heights_green, intermediate_bottom_heights, offset_x, offset_y, pixel_size)
 
     heights_water = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_water = expand_mask(mask_water)
     heights_water[mask_water] = heights_terrain[mask_water]
-    ms_water = meshify_terrain_features(heights_water, heights_bot, offset_x, offset_y, pixel_size)
+    ms_water = meshify_terrain_features(heights_water, intermediate_bottom_heights, offset_x, offset_y, pixel_size)
 
     heights_terrain_expanded = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_terrain_expanded = expand_mask(mask_terrain)
     heights_terrain_expanded[mask_terrain_expanded] = heights_terrain[mask_terrain_expanded]
-    ms_terrain = meshify_terrain(heights_terrain_expanded, heights_bot, mask_terrain, offset_x, offset_y, pixel_size)
+    ms_terrain = meshify_terrain(heights_terrain_expanded, intermediate_bottom_heights, mask_terrain, offset_x, offset_y, pixel_size)
 
     ms_buildings = meshify_buildings_trees(heights_buildings, heights_terrain, offset_x, offset_y, pixel_size)
     ms_trees = meshify_buildings_trees(heights_trees, heights_terrain, offset_x, offset_y, pixel_size)
 
     return ms_terrain, ms_roads, ms_green, ms_water, ms_buildings, ms_trees
 
-def meshify_terrain(heights_top, heights_bot, mask, offset_x, offset_y, pixel_size):
+def meshify_white(heights, offset_x, offset_y, pixel_size):
+
+    n_rows, n_cols = heights.shape
+    dem_size = n_rows * n_cols
+
+    # Vertices
+    vertices = generate_vertices(heights, offset_x, offset_y, pixel_size)
+    vertices_bottom = generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size)
+    vertices = np.append(vertices, vertices_bottom, axis=0)
+
+    # Create grid indices
+    grid_idxs = np.arange((n_rows-1) * (n_cols-1))
+    grid_idxs = grid_idxs.reshape((n_rows-1, n_cols-1))
+    offsets = np.arange(n_rows-1).reshape((-1, 1))
+    offsets = np.tile(offsets, n_cols-1)
+    grid_idxs = grid_idxs + offsets
+    grid_idxs = grid_idxs.reshape((-1, 1))
+    grid_idxs = np.tile(grid_idxs, 4)
+
+    # Grid up faces
+    grid_idxs[:,1] += n_cols
+    grid_idxs[:,2] += n_cols + 1
+    grid_idxs[:,3] += 1
+
+    grid_vertices = vertices[grid_idxs]
+    grid_heights = grid_vertices[:,:,2]
+    grid_maxes = np.argmax(grid_heights, axis=1)
+
+    grid_nw_se_idxs = np.isin(grid_maxes, [0,2])
+    grid_sw_ne_idxs = np.isin(grid_maxes, [1,3])
+    grid_nw_se_faces = grid_idxs[grid_nw_se_idxs]
+    grid_sw_ne_faces = grid_idxs[grid_sw_ne_idxs]
+
+    top_left_idxs = np.array([3, 1, 0])
+    bot_right_idxs = np.array([3, 2, 1])
+    top_right_idxs = np.array([3, 2, 0])
+    bot_left_idxs = np.array([0, 2, 1])
+    
+    faces = np.empty((0,3), dtype=np.int32)
+    faces = np.append(faces, grid_nw_se_faces[:,top_left_idxs], axis=0)
+    faces = np.append(faces, grid_nw_se_faces[:,bot_right_idxs], axis=0)
+    faces = np.append(faces, grid_sw_ne_faces[:,top_right_idxs], axis=0)
+    faces = np.append(faces, grid_sw_ne_faces[:,bot_left_idxs], axis=0)
+
+    # Top side faces
+    faces_top = np.arange(n_cols-1, dtype=np.float32).reshape((-1, 1))
+    faces_top = np.tile(faces_top, 4)
+    faces_top[:,1] += 1
+    faces_top[:,2] += dem_size + 1
+    faces_top[:,3] += dem_size
+    faces = np.append(faces, faces_top[:,top_left_idxs], axis=0)
+    faces = np.append(faces, faces_top[:,bot_right_idxs], axis=0)
+    
+    # Bottom side faces
+    faces_bot = np.arange(n_cols-1, dtype=np.float32)
+    faces_bot = faces_bot.reshape((-1, 1))
+    faces_bot = np.tile(faces_bot, 4)
+    faces_bot[:,0] += dem_size - n_cols
+    faces_bot[:,1] += dem_size + n_cols
+    faces_bot[:,2] += dem_size + n_cols + 1
+    faces_bot[:,3] += dem_size - n_cols + 1
+    faces = np.append(faces, faces_bot[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_bot[:,bot_left_idxs], axis=0)
+
+    side_start = 0
+    side_stop = dem_size-2*n_cols+1
+    side_step = n_cols
+    side_offsets = np.arange(side_start, side_stop, side_step)
+
+    # Left side faces
+    faces_left = np.arange(n_rows-1, dtype=np.float32)
+    faces_left = faces_left.reshape((-1, 1))
+    faces_left = np.tile(faces_left, 4)
+    faces_left[:,0] = side_offsets
+    faces_left[:,1] += dem_size + 2*n_cols
+    faces_left[:,2] += dem_size + 2*n_cols + 1
+    faces_left[:,3] = side_offsets + n_cols
+    faces = np.append(faces, faces_left[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_left[:,bot_left_idxs], axis=0)
+    
+    # Right side faces
+    faces_right = np.arange(n_rows-1, dtype=np.float32)
+    faces_right = faces_right.reshape((-1, 1))
+    faces_right = np.tile(faces_right, 4)
+    faces_right[:,0] = side_offsets + n_cols - 1
+    faces_right[:,1] = side_offsets + 2*n_cols - 1
+    faces_right[:,2] += dem_size + 2*n_cols + n_rows + 1
+    faces_right[:,3] += dem_size + 2*n_cols + n_rows
+    faces = np.append(faces, faces_right[:,top_right_idxs], axis=0)
+    faces = np.append(faces, faces_right[:,bot_left_idxs], axis=0)
+
+    # Bottom face
+    idxs_bot = np.array([dem_size, dem_size+n_cols-1, dem_size+2*n_cols-1, dem_size+n_cols])
+    idxs_bot = idxs_bot.reshape((-1,4))
+    faces = np.append(faces, idxs_bot[:,top_right_idxs], axis=0)
+    faces = np.append(faces, idxs_bot[:,bot_left_idxs], axis=0)
+
+    mesh = pymeshlab.Mesh(
+        vertex_matrix = vertices,
+        face_matrix = faces
+    )
+    ms = pymeshlab.MeshSet()
+    ms.add_mesh(mesh)
+    ms.apply_filter("remove_unreferenced_vertices")
+
+    return ms
+
+def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, offset_y, pixel_size):
 
     n_rows, n_cols = heights_top.shape
     dem_size = n_rows * n_cols
 
     vertices_top = generate_vertices(heights_top, offset_x, offset_y, pixel_size)
-    vertices_bot = generate_vertices(heights_bot, offset_x, offset_y, pixel_size)
+    vertices_bot = generate_vertices(intermediate_bottom_heights, offset_x, offset_y, pixel_size)
     vertices = np.append(vertices_top, vertices_bot, axis=0)
-    vertices_bottom_sides = generate_bottom_vertices(n_rows, n_cols, BOTTOM_HEIGHT, offset_x, offset_y, pixel_size)
+    vertices_bottom_sides = generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size)
     vertices = np.append(vertices, vertices_bottom_sides, axis=0)
 
     idxs = generate_idxs(n_rows, n_cols)
@@ -285,10 +393,10 @@ def meshify_terrain(heights_top, heights_bot, mask, offset_x, offset_y, pixel_si
 
     return ms
 
-def meshify_terrain_features(heights_top, heights_bot, offset_x, offset_y, pixel_size):
+def meshify_terrain_features(heights_top, intermediate_bottom_heights, offset_x, offset_y, pixel_size):
 
     vertices_top = generate_vertices(heights_top, offset_x, offset_y, pixel_size)
-    vertices_bot = generate_vertices(heights_bot, offset_x, offset_y, pixel_size)
+    vertices_bot = generate_vertices(intermediate_bottom_heights, offset_x, offset_y, pixel_size)
     vertices = np.append(vertices_top, vertices_bot, axis=0)
 
     n_rows, n_cols = heights_top.shape
@@ -466,11 +574,11 @@ def meshify_terrain_features(heights_top, heights_bot, offset_x, offset_y, pixel
 # VERTEX ORDERING
 # Top: dem_size
 # Bottom: dem_size
-def meshify_buildings_trees(heights_top, heights_bot, offset_x, offset_y, pixel_size):
+def meshify_buildings_trees(heights_top, intermediate_bottom_heights, offset_x, offset_y, pixel_size):
 
     # Vertices
     vertices_top = generate_vertices(heights_top, offset_x, offset_y, pixel_size)
-    vertices_bot = generate_vertices(heights_bot, offset_x, offset_y, pixel_size)
+    vertices_bot = generate_vertices(intermediate_bottom_heights, offset_x, offset_y, pixel_size)
     vertices = np.append(vertices_top, vertices_bot, axis=0)
 
     n_rows, n_cols = heights_top.shape
@@ -716,113 +824,6 @@ def meshify_buildings_trees(heights_top, heights_bot, offset_x, offset_y, pixel_
 
     return ms
 
-def meshify_white(heights, offset_x, offset_y, pixel_size):
-
-    n_rows, n_cols = heights.shape
-    dem_size = n_rows * n_cols
-
-    # Vertices
-    vertices = generate_vertices(heights, offset_x, offset_y, pixel_size)
-    vertices_bottom = generate_bottom_vertices(n_rows, n_cols, BOTTOM_HEIGHT, offset_x, offset_y, pixel_size)
-    vertices = np.append(vertices, vertices_bottom, axis=0)
-
-    # Create grid indices
-    grid_idxs = np.arange((n_rows-1) * (n_cols-1))
-    grid_idxs = grid_idxs.reshape((n_rows-1, n_cols-1))
-    offsets = np.arange(n_rows-1).reshape((-1, 1))
-    offsets = np.tile(offsets, n_cols-1)
-    grid_idxs = grid_idxs + offsets
-    grid_idxs = grid_idxs.reshape((-1, 1))
-    grid_idxs = np.tile(grid_idxs, 4)
-
-    # Grid up faces
-    grid_idxs[:,1] += n_cols
-    grid_idxs[:,2] += n_cols + 1
-    grid_idxs[:,3] += 1
-
-    grid_vertices = vertices[grid_idxs]
-    grid_heights = grid_vertices[:,:,2]
-    grid_maxes = np.argmax(grid_heights, axis=1)
-
-    grid_nw_se_idxs = np.isin(grid_maxes, [0,2])
-    grid_sw_ne_idxs = np.isin(grid_maxes, [1,3])
-    grid_nw_se_faces = grid_idxs[grid_nw_se_idxs]
-    grid_sw_ne_faces = grid_idxs[grid_sw_ne_idxs]
-
-    top_left_idxs = np.array([3, 1, 0])
-    bot_right_idxs = np.array([3, 2, 1])
-    top_right_idxs = np.array([3, 2, 0])
-    bot_left_idxs = np.array([0, 2, 1])
-    
-    faces = np.empty((0,3), dtype=np.int32)
-    faces = np.append(faces, grid_nw_se_faces[:,top_left_idxs], axis=0)
-    faces = np.append(faces, grid_nw_se_faces[:,bot_right_idxs], axis=0)
-    faces = np.append(faces, grid_sw_ne_faces[:,top_right_idxs], axis=0)
-    faces = np.append(faces, grid_sw_ne_faces[:,bot_left_idxs], axis=0)
-
-    # Top side faces
-    faces_top = np.arange(n_cols-1, dtype=np.float32).reshape((-1, 1))
-    faces_top = np.tile(faces_top, 4)
-    faces_top[:,1] += 1
-    faces_top[:,2] += dem_size + 1
-    faces_top[:,3] += dem_size
-    faces = np.append(faces, faces_top[:,top_left_idxs], axis=0)
-    faces = np.append(faces, faces_top[:,bot_right_idxs], axis=0)
-    
-    # Bottom side faces
-    faces_bot = np.arange(n_cols-1, dtype=np.float32)
-    faces_bot = faces_bot.reshape((-1, 1))
-    faces_bot = np.tile(faces_bot, 4)
-    faces_bot[:,0] += dem_size - n_cols
-    faces_bot[:,1] += dem_size + n_cols
-    faces_bot[:,2] += dem_size + n_cols + 1
-    faces_bot[:,3] += dem_size - n_cols + 1
-    faces = np.append(faces, faces_bot[:,top_right_idxs], axis=0)
-    faces = np.append(faces, faces_bot[:,bot_left_idxs], axis=0)
-
-    side_start = 0
-    side_stop = dem_size-2*n_cols+1
-    side_step = n_cols
-    side_offsets = np.arange(side_start, side_stop, side_step)
-
-    # Left side faces
-    faces_left = np.arange(n_rows-1, dtype=np.float32)
-    faces_left = faces_left.reshape((-1, 1))
-    faces_left = np.tile(faces_left, 4)
-    faces_left[:,0] = side_offsets
-    faces_left[:,1] += dem_size + 2*n_cols
-    faces_left[:,2] += dem_size + 2*n_cols + 1
-    faces_left[:,3] = side_offsets + n_cols
-    faces = np.append(faces, faces_left[:,top_right_idxs], axis=0)
-    faces = np.append(faces, faces_left[:,bot_left_idxs], axis=0)
-    
-    # Right side faces
-    faces_right = np.arange(n_rows-1, dtype=np.float32)
-    faces_right = faces_right.reshape((-1, 1))
-    faces_right = np.tile(faces_right, 4)
-    faces_right[:,0] = side_offsets + n_cols - 1
-    faces_right[:,1] = side_offsets + 2*n_cols - 1
-    faces_right[:,2] += dem_size + 2*n_cols + n_rows + 1
-    faces_right[:,3] += dem_size + 2*n_cols + n_rows
-    faces = np.append(faces, faces_right[:,top_right_idxs], axis=0)
-    faces = np.append(faces, faces_right[:,bot_left_idxs], axis=0)
-
-    # Bottom face
-    idxs_bot = np.array([dem_size, dem_size+n_cols-1, dem_size+2*n_cols-1, dem_size+n_cols])
-    idxs_bot = idxs_bot.reshape((-1,4))
-    faces = np.append(faces, idxs_bot[:,top_right_idxs], axis=0)
-    faces = np.append(faces, idxs_bot[:,bot_left_idxs], axis=0)
-
-    mesh = pymeshlab.Mesh(
-        vertex_matrix = vertices,
-        face_matrix = faces
-    )
-    ms = pymeshlab.MeshSet()
-    ms.add_mesh(mesh)
-    ms.apply_filter("remove_unreferenced_vertices")
-
-    return ms
-
 def generate_vertices(heights, offset_x, offset_y, pixel_size):
     n_rows, n_cols = heights.shape
     xs = np.arange(n_cols)
@@ -840,7 +841,7 @@ def generate_vertices(heights, offset_x, offset_y, pixel_size):
     return vertices
 
 # Vertices that are located at the bottom on the edges
-def generate_bottom_vertices(n_rows, n_cols, height_bottom, offset_x, offset_y, pixel_size):
+def generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size):
 
     vertices = np.empty((0, 2), dtype=np.float32)
 
@@ -871,7 +872,7 @@ def generate_bottom_vertices(n_rows, n_cols, height_bottom, offset_x, offset_y, 
     vertices *= pixel_size
     offset = np.array([offset_x, offset_y]) * pixel_size
     vertices += offset
-    heights = np.full((vertices.shape[0], 1), height_bottom, dtype=np.float32)
+    heights = np.full((vertices.shape[0], 1), GLOBAL_BOTTOM_HEIGHT, dtype=np.float32)
     vertices = np.append(vertices, heights, axis=1)
     # vertices = vertices[:,[0,2,1]] # flips y/z
     return vertices
