@@ -1,0 +1,8 @@
+TILE_SIZE = 1000
+PIXEL_SIZE = 0.4
+N_PIXELS_1x1 = int(TILE_SIZE / PIXEL_SIZE)
+N_PIXELS_2x2 = int(TILE_SIZE / (PIXEL_SIZE * 2))
+ETRS89_UTM32N = 25832
+
+def test():
+    pass

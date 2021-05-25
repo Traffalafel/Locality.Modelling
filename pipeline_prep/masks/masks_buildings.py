@@ -3,6 +3,7 @@ import geopandas
 import rasterio
 import rasterio.features
 import os
+import sys
 from polygonize import polygonize
 from clip import clip
 
@@ -105,4 +106,5 @@ def main():
 
             print(f"saved {file_name}")
 
-main()
+if __name__ == '__main__':
+    main()

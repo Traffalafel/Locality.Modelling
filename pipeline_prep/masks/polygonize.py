@@ -3,8 +3,6 @@ import numpy as np
 from shapely.geometry import Polygon, LineString, MultiLineString, Point
 import matplotlib.pyplot as plt
 
-# Arguments
-
 # Constants
 ETRS89_UTM32N = 3044
 WIDTH_MAPPING = {
@@ -91,9 +89,7 @@ def polygonize_line(geometry, width):
         outputs += geoms
     return outputs
 
-def polygonize(df, bounds):
-
-    x_min, x_max, y_min, y_max = bounds
+def polygonize(df):
 
     df_out = geopandas.GeoDataFrame(columns=['geometry', 'fclass'], crs=ETRS89_UTM32N)
 

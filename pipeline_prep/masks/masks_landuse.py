@@ -45,8 +45,6 @@ FCLASSES_GREEN = [
     "farmyard"
 ]
 
-ETRS89_UTM32N = 25832
-
 def filter_by_fclass(dataframe, fclasses):
     df_out = geopandas.GeoDataFrame(columns=['geometry', 'fclass'], crs=dataframe.crs)
     for idx, row in dataframe.iterrows():
@@ -57,39 +55,8 @@ def filter_by_fclass(dataframe, fclasses):
         df_out.loc[len(df_out)] = [geometry, fclass]
     return df_out
 
-def rasterize(dataframe, n_pixels, x, y, offset):
-    transform = rasterio.transform.from_bounds(
-        west = x * TILE_SIZE + offset,
-        east = (x+1) * TILE_SIZE + offset,
-        south = y * TILE_SIZE + offset,
-        north = (y+1) * TILE_SIZE + offset,
-        height = n_pixels,
-        width = n_pixels
-    )
-    pixels = rasterio.features.rasterize(
-        shapes=dataframe['geometry'],
-        out_shape=(n_pixels, n_pixels),
-        fill=0,
-        transform=transform,
-        all_touched=ALL_TOUCHED,
-        default_value=1,
-        dtype=np.uint8
-    )
-    return pixels, transform
-
-def save_raster(values, file_path, transform):
-    dataset = rasterio.open(
-        file_path,
-        mode="w",
-        driver="GTiff",
-        width=values.shape[1],
-        height=values.shape[0],
-        count=1,
-        crs=CRS.from_epsg(ETRS89_UTM32N),
-        transform=transform,
-        dtype=values.dtype
-    )
-    dataset.write(values, 1)
+def transform(df):
+    return filter_by_fclass(df, FCLASSES_GREEN)
 
 def main():
 
