@@ -8,10 +8,8 @@ import rasterio.transform
 import sys
 import pylas
 from interpolate import interpolate
+from locality import utils
 
-import matplotlib.pyplot as plt
-
-DIR_LIDAR = r"D:\data\lidar"
 DIR_MASKS_BUILDINGS = r"D:\data\masks\buildings"
 
 CLASS_NOISE = 1
@@ -124,9 +122,11 @@ def erode(heights):
     horizontal_idxs = np.logical_or(horizontal_1, horizontal_2)
     heights[horizontal_idxs] = NULL_VAL
 
-def generate_buildings(file_name):
+def generate_buildings(file_path):
     
     dem_size = int(TILE_SIZE / PIXEL_SIZE)
+
+    file_name = utils.get_file_name(file_path)
 
     # Get buildings mask
     file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, file_name + ".tif")
@@ -135,6 +135,7 @@ def generate_buildings(file_name):
         mask_buildings = dataset_mask_buildings.read(1)
         mask_buildings = mask_buildings.astype(np.uint8)
     else:
+        print(f"Could not find buildings mask file {file_mask_buildings_path}")
         mask_buildings = np.zeros((dem_size, dem_size), dtype=np.uint8)
 
     # Dilate buildings mask
@@ -142,10 +143,8 @@ def generate_buildings(file_name):
     mask_buildings = cv.dilate(mask_buildings, kernel, iterations=1)
     mask_buildings = mask_buildings == 1
 
-    file_las_path = os.path.join(DIR_LIDAR, file_name + ".las")
-
     # Get buildings heights
-    las_buildings = pylas.read(file_las_path)
+    las_buildings = pylas.read(file_path)
     las_buildings.points = las_buildings.points[las_buildings.classification == CLASS_BUILDINGS]
     
     if las_buildings.points.size == 0:
@@ -155,7 +154,7 @@ def generate_buildings(file_name):
 
     # Set buildings that have been falsely classified as vegetation
     falsely_classified = np.full((dem_size, dem_size), NULL_VAL, np.float32)
-    las_trees = pylas.read(file_las_path)
+    las_trees = pylas.read(file_path)
     las_trees.points = las_trees.points[np.isin(las_trees.classification, CLASSES_TREES)]
     las_trees.points = las_trees.points[las_trees['number_of_returns'] < MIN_N_OF_RETURNS_TREES]
     heights_trees = create_heights(las_trees, PIXEL_SIZE, dem_size)
@@ -170,14 +169,12 @@ def generate_buildings(file_name):
 
     return heights_buildings
 
-def generate_trees(file_name):
+def generate_trees(file_path):
 
     dem_size = int(TILE_SIZE / PIXEL_SIZE)
 
-    file_las_path = os.path.join(DIR_LIDAR, file_name + ".las")
-
     # Get terrain heights
-    las_terrain = pylas.read(file_las_path)
+    las_terrain = pylas.read(file_path)
     las_terrain.points = las_terrain.points[las_terrain.classification == CLASS_GROUND]
     las_terrain.points = las_terrain.points[las_terrain['number_of_returns'] == 1]
     if las_terrain.points.size != 0:
@@ -187,7 +184,7 @@ def generate_trees(file_name):
     erode(heights_terrain)
 
     # Get trees heights
-    las_trees = pylas.read(file_las_path)
+    las_trees = pylas.read(file_path)
     las_trees.points = las_trees.points[np.isin(las_trees.classification, CLASSES_TREES)]
     las_trees.points = las_trees.points[las_trees['number_of_returns'] >= MIN_N_OF_RETURNS_TREES]
 
@@ -207,12 +204,13 @@ def generate_trees(file_name):
 
     return heights_trees
 
-def generate_DEM(file_name, dir_out):
+def generate_DEM(file_path, dir_out):
     
-    heights_buildings = generate_buildings(file_name)
-    heights_trees = generate_trees(file_name)
+    heights_buildings = generate_buildings(file_path)
+    heights_trees = generate_trees(file_path)
     
     # Create bounds
+    file_name = utils.get_file_name(file_path)
     dem_size = int(TILE_SIZE / PIXEL_SIZE)
     bounds = get_file_bounds(file_name)
     transform = rasterio.transform.from_bounds(
@@ -232,17 +230,25 @@ def generate_DEM(file_name, dir_out):
     file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
     save_raster(heights_trees, file_path_trees, transform)
 
+    print(file_path_trees)
+
 def main():
-    dir_out = r"D:\data\heights"
-    files_in = get_dir_file_names(DIR_LIDAR)
-    for file_name in files_in:
+
+    n_args = len(sys.argv)
+    dir_in_path = sys.argv[1]
+    dir_out_path = sys.argv[2]
+
+    file_paths_in = utils.get_directory_file_paths(dir_in_path)
+    for file_path in file_paths_in:
         
-        file_path_buildings = os.path.join(dir_out, "buildings", "raw", f"{file_name}.tif")
+        file_name = utils.get_file_name(file_path)
+
+        file_path_buildings = os.path.join(dir_out_path, "buildings", "raw", f"{file_name}.tif")
         if os.path.exists(file_path_buildings):
             print(f"{file_name} already exists. Skipping...")
             continue
         
-        print(f"{file_name}")
-        generate_DEM(file_name, dir_out)
+        print(f"{file_path}")
+        generate_DEM(file_path, dir_out_path)
 
 main()

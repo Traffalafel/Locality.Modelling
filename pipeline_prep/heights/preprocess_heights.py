@@ -5,11 +5,6 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-# Heights in
-TERRAIN_DIR = r"D:\data\heights\terrain"
-BUILDINGS_DIR = r"D:\data\heights\buildings"
-TREES_DIR = r"D:\data\heights\trees"
-
 # Args
 NULL_HEIGHT = -1
 GAUSSIAN_SIZE = 3
@@ -111,6 +106,7 @@ def preprocess_DEM(file_name, heights_dir):
     save(heights_trees, dataset_terrain.transform, trees_file_path_out, dataset_terrain.crs)
 
 def main():
+
     heights_dir = r"D:\data\heights"
     buildings_dir_raw = os.path.join(heights_dir, "buildings", "raw")
     files_in = get_dir_file_names(buildings_dir_raw)

@@ -1,10 +1,9 @@
 import geopandas
 import numpy as np
 from shapely.geometry import Polygon, LineString, MultiLineString, Point
-import matplotlib.pyplot as plt
+from .constants import ETRS89_UTM32N
 
 # Constants
-ETRS89_UTM32N = 3044
 WIDTH_MAPPING = {
     # Major roads
     'motorway': 20,

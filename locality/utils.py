@@ -23,10 +23,14 @@ def get_file_bounds(file_name):
 def get_file_extension(file):
     return file.split('.')[1]
 
-def get_directory_file_paths(dir_path):
+def get_directory_file_paths(dir_path, extension=None):
     contents = os.listdir(dir_path)
     files = [c for c in contents if os.path.isfile(os.path.join(dir_path, c))]
     file_paths = [os.path.join(dir_path, f) for f in files]
+
+    if extension is not None:
+        file_paths = [path for path in file_paths if get_file_extension(path) == extension]
+    
     return file_paths
 
 def get_directory_file_names(dir_path):
@@ -90,3 +94,6 @@ def filter_by_fclass(dataframe, fclasses):
         geometry = row['geometry']
         df_out.loc[len(df_out)] = [geometry, fclass]
     return df_out
+
+def filter_by_geometry(dataframe, geometry):
+    return dataframe[dataframe['geometry'].apply(lambda x: x.type == geometry)]
