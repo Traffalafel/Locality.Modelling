@@ -3,9 +3,15 @@ import matplotlib.pyplot as plt
 import pymeshlab
 
 NULL_HEIGHT = -1
-GLOBAL_BOTTOM_HEIGHT = 0
+BOTTOM_HEIGHT_DISTANCE = -2
+INTERMEDIATE_HEIGHT_DISTANCE = 1
 
-def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads, mask_green, mask_water, offset_x, offset_y, pixel_size):
+def get_intermediate_heights(heights):
+    intermediate = heights - INTERMEDIATE_HEIGHT_DISTANCE
+    intermediate[intermediate == NULL_HEIGHT - INTERMEDIATE_HEIGHT_DISTANCE] = NULL_HEIGHT
+    return intermediate
+
+def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads, mask_green, mask_water, offset_x, offset_y, pixel_size, terrain_min_height_global):
 
     n_rows, n_cols = heights_terrain.shape
 
@@ -24,30 +30,31 @@ def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads,
     mask_green[mask_water] = False
     mask_green[mask_roads] = False
 
-    min_height = heights_terrain.min()
-
-    intermediate_bottom_height = (min_height - GLOBAL_BOTTOM_HEIGHT) / 2
-    intermediate_bottom_heights = np.full((n_rows, n_cols), intermediate_bottom_height, dtype=np.float32)
-
     heights_roads = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_roads = expand_mask(mask_roads)
     heights_roads[mask_roads] = heights_terrain[mask_roads]
-    ms_roads = meshify_terrain_features(heights_roads, intermediate_bottom_heights, offset_x, offset_y, pixel_size)
+    heights_roads_intermediate = get_intermediate_heights(heights_roads)
+    ms_roads = meshify_terrain_features(heights_roads, heights_roads_intermediate, offset_x, offset_y, pixel_size)
 
     heights_green = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_green = expand_mask(mask_green)
     heights_green[mask_green] = heights_terrain[mask_green]
-    ms_green = meshify_terrain_features(heights_green, intermediate_bottom_heights, offset_x, offset_y, pixel_size)
+    heights_green_intermediate = get_intermediate_heights(heights_green)
+    ms_green = meshify_terrain_features(heights_green, heights_green_intermediate, offset_x, offset_y, pixel_size)
 
     heights_water = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_water = expand_mask(mask_water)
     heights_water[mask_water] = heights_terrain[mask_water]
-    ms_water = meshify_terrain_features(heights_water, intermediate_bottom_heights, offset_x, offset_y, pixel_size)
+    heights_water_intermediate = get_intermediate_heights(heights_water)
+    ms_water = meshify_terrain_features(heights_water, heights_water_intermediate, offset_x, offset_y, pixel_size)
 
     heights_terrain_expanded = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
     mask_terrain_expanded = expand_mask(mask_terrain)
     heights_terrain_expanded[mask_terrain_expanded] = heights_terrain[mask_terrain_expanded]
-    ms_terrain = meshify_terrain(heights_terrain_expanded, intermediate_bottom_heights, mask_terrain, offset_x, offset_y, pixel_size)
+    heights_terrain_intermediate = np.maximum(heights_roads_intermediate, heights_green_intermediate)
+    heights_terrain_intermediate = np.maximum(heights_terrain_intermediate, heights_water_intermediate)
+    bottom_height = terrain_min_height_global - BOTTOM_HEIGHT_DISTANCE
+    ms_terrain = meshify_terrain(heights_terrain_expanded, heights_terrain_intermediate, mask_terrain, offset_x, offset_y, pixel_size, bottom_height)
 
     ms_buildings = meshify_buildings_trees(heights_buildings, heights_terrain, offset_x, offset_y, pixel_size)
     ms_trees = meshify_buildings_trees(heights_trees, heights_terrain, offset_x, offset_y, pixel_size)
@@ -161,7 +168,7 @@ def meshify_white(heights, offset_x, offset_y, pixel_size):
 
     return ms
 
-def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, offset_y, pixel_size):
+def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, offset_y, pixel_size, bottom_height):
 
     n_rows, n_cols = heights_top.shape
     dem_size = n_rows * n_cols
@@ -169,7 +176,7 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     vertices_top = generate_vertices(heights_top, offset_x, offset_y, pixel_size)
     vertices_bot = generate_vertices(intermediate_bottom_heights, offset_x, offset_y, pixel_size)
     vertices = np.append(vertices_top, vertices_bot, axis=0)
-    vertices_bottom_sides = generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size)
+    vertices_bottom_sides = generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size, bottom_height)
     vertices = np.append(vertices, vertices_bottom_sides, axis=0)
 
     idxs = generate_idxs(n_rows, n_cols)
@@ -841,7 +848,7 @@ def generate_vertices(heights, offset_x, offset_y, pixel_size):
     return vertices
 
 # Vertices that are located at the bottom on the edges
-def generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size):
+def generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size, bottom_height=0):
 
     vertices = np.empty((0, 2), dtype=np.float32)
 
@@ -872,7 +879,7 @@ def generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size):
     vertices *= pixel_size
     offset = np.array([offset_x, offset_y]) * pixel_size
     vertices += offset
-    heights = np.full((vertices.shape[0], 1), GLOBAL_BOTTOM_HEIGHT, dtype=np.float32)
+    heights = np.full((vertices.shape[0], 1), bottom_height, dtype=np.float32)
     vertices = np.append(vertices, heights, axis=1)
     # vertices = vertices[:,[0,2,1]] # flips y/z
     return vertices

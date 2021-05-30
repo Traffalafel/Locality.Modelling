@@ -129,7 +129,7 @@ def generate_buildings(file_path):
     file_name = utils.get_file_name(file_path)
 
     # Get buildings mask
-    file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, file_name + ".tif")
+    file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, "1x1", file_name + ".tif")
     if os.path.exists(file_mask_buildings_path):
         dataset_mask_buildings = rasterio.open(file_mask_buildings_path)
         mask_buildings = dataset_mask_buildings.read(1)
@@ -238,7 +238,7 @@ def main():
     dir_in_path = sys.argv[1]
     dir_out_path = sys.argv[2]
 
-    file_paths_in = utils.get_directory_file_paths(dir_in_path)
+    file_paths_in = utils.get_directory_file_paths(dir_in_path, "las")
     for file_path in file_paths_in:
         
         file_name = utils.get_file_name(file_path)

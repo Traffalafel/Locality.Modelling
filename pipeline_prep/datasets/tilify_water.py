@@ -4,7 +4,7 @@ from shapely.geometry import Polygon
 from rasterio.crs import CRS
 import os
 
-INPUT_FILE_PATH = r"D:\data\datasets\OSM"
+INPUT_FILE_PATH = r"D:\data\datasets\raw\OSM_water\water_union.shp"
 OUTPUT_DIR_PATH = r"D:\data\datasets\OSM_water\10x10"
 
 BLOCKS_FILE_PATH = r"D:\data\metadata\10x10 km blocks.csv"
@@ -30,7 +30,7 @@ def main():
         file_name_shp = f"{x}_{y}.shp"
         file_path_shp = os.path.join(OUTPUT_DIR_PATH, file_name_shp)
         if os.path.exists(file_path_shp):
-            print(f"{file_path_shp} already exists. Skipping...")
+            # print(f"{file_path_shp} already exists. Skipping...")
             continue 
 
         bound_w = x * TILE_SIZE_METRES

@@ -2,11 +2,11 @@ $tile_x = $args[0]
 $tile_y = $args[1]
 $destination_dir_path = $args[2]
 
-$file_name_ftp = "DTM_$($tile_y)_$($tile_x)_TIF_UTM32-ETRS89.zip"
+$file_name_ftp = "PUNKTSKY_$($tile_y)_$($tile_x)_TIF_UTM32-ETRS89.zip"
 $destination_file_name = "$($tile_x)_$($tile_y).zip"
 $destination_file_path = Join-Path $destination_dir_path $destination_file_name
 
-$url = "ftp://ftp.kortforsyningen.dk/dhm_danmarks_hoejdemodel/DTM/$($file_name_ftp)"
+$url = "ftp://ftp.kortforsyningen.dk/dhm_danmarks_hoejdemodel/PUNKTSKY/$($file_name_ftp)"
 $kortforsyningen_username = "thommib0b"
 $kortforsyningen_password = "UY9vank@ount.joy"
 

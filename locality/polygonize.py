@@ -16,7 +16,7 @@ WIDTH_MAPPING = {
     'unclassified': 5,
     'residential': 5,
     'living_street': 5,
-    'pedestrian': None,
+    'pedestrian': 5,
 
     # Highway links
     'motorway_link': 12,

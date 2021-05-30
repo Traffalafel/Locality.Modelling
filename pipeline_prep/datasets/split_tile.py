@@ -16,7 +16,7 @@ def split_tile(file_in_path, dir_out, margin=0, geometry=None):
     min_x = file_name_x * TILE_SIZE_10KM
     min_y = file_name_y * TILE_SIZE_10KM
 
-    offset = constants.PIXEL_SIZE/2
+    offset = constants.OFFSET
 
     df = geopandas.read_file(file_in_path)
 
@@ -47,7 +47,7 @@ def main():
         print("Not enough args")
         return 
 
-    dir_in_path = sys.argv[1]
+    file_in_path = sys.argv[1]
     dir_out_path = sys.argv[2]
 
     if n_args >= 4:
@@ -60,7 +60,7 @@ def main():
     else:
         geometry = None
 
-    split_tile(dir_in_path, dir_out_path, margin, geometry)
+    split_tile(file_in_path, dir_out_path, margin, geometry)
 
 if __name__ == "__main__":
     main()

@@ -55,6 +55,7 @@ def main():
     files_in_paths = utils.get_directory_file_paths(dir_in_path, extension='shp')
     for file_in_path in files_in_paths:
         mask_buildings(file_in_path, dir_out_path)
+        print(file_in_path)
 
 if __name__ == "__main__":
     main()

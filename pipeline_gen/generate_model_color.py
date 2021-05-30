@@ -76,14 +76,16 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
     
     heights_buildings_dir_path = os.path.join(data_dir_path, "heights", "buildings", aggreg_string)
     heights_buildings = get_heights(heights_buildings_dir_path, point_sw, point_nw, point_se, pixel_size)
+    heights_buildings[heights_buildings <= heights_terrain] = NULL_HEIGHT
 
     heights_trees_dir_path = os.path.join(data_dir_path, "heights", "trees", aggreg_string)
     heights_trees = get_heights(heights_trees_dir_path, point_sw, point_nw, point_se, pixel_size)
+    heights_trees[heights_trees <= heights_terrain] = NULL_HEIGHT
     
     # Get masks
     mask_roads_dir_path = os.path.join(data_dir_path, "masks", "roads", aggreg_string)
     mask_roads = get_mask(mask_roads_dir_path, point_sw, point_nw, point_se, pixel_size)
-   
+
     mask_green_dir_path = os.path.join(data_dir_path, "masks", "green", aggreg_string)
     mask_green = get_mask(mask_green_dir_path, point_sw, point_nw, point_se, pixel_size)
 
@@ -93,6 +95,8 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
     n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
     n_rows_tile = n_rows // tiles_y
     n_cols_tile = n_cols // tiles_x
+
+    terrain_min_height_global = heights_terrain.min()
 
     for tile_x in range(tiles_x):
         for tile_y in range(tiles_y):
@@ -124,7 +128,8 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
                 mask_water_tile, 
                 offset_x, 
                 offset_y, 
-                pixel_size
+                pixel_size,
+                terrain_min_height_global
             )
 
             # Save terrain
