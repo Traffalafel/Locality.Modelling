@@ -4,7 +4,7 @@ import rasterio
 from pyproj import Transformer
 import os
 import pymeshlab
-from get_contents import get_contents, compute_shape
+from locality import get_contents
 from meshify import meshify_color
 
 # ARGS
@@ -51,49 +51,51 @@ def generate_meshlab_project(dir_out, tiles_x, tiles_y, model_name, output_forma
     with open(file_path, "w+") as fd:
         fd.write(s) 
 
-def get_heights(path, point_sw, point_nw, point_se, pixel_size):
-    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+def get_heights(path, point_sw, width, height, pixel_size):
+    n_rows, n_cols = get_contents.compute_shape(width, height, pixel_size)
     if os.path.exists(path):
-        return get_contents(path, point_sw, point_nw, point_se, pixel_size)
+        return get_contents.get_contents(path, point_sw, width, height, pixel_size)
     else:
         return np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
 
-def get_mask(path, point_sw, point_nw, point_se, pixel_size):
-    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+def get_mask(path, point_sw, width, height, pixel_size):
+    n_rows, n_cols = get_contents.compute_shape(width, height, pixel_size)
     if os.path.exists(path):
-        mask = get_contents(path, point_sw, point_nw, point_se, pixel_size)
+        mask = get_contents.get_contents(path, point_sw, width, height, pixel_size)
         return mask == 1
     else:
         return np.full((n_rows, n_cols), False, dtype=bool)
 
-def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format):
+def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_x, tiles_y, aggreg_size, model_name, output_format):
 
     pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
     aggreg_string = f"{aggreg_size}x{aggreg_size}"
 
     # Get heights
     heights_terrain_dir_path = os.path.join(data_dir_path, "heights", "terrain", aggreg_string)
-    heights_terrain = get_heights(heights_terrain_dir_path, point_sw, point_nw, point_se, pixel_size)
-    
+    heights_terrain = get_heights(heights_terrain_dir_path, point_sw, width, height, pixel_size)
+
     heights_buildings_dir_path = os.path.join(data_dir_path, "heights", "buildings", aggreg_string)
-    heights_buildings = get_heights(heights_buildings_dir_path, point_sw, point_nw, point_se, pixel_size)
+    heights_buildings = get_heights(heights_buildings_dir_path, point_sw, width, height, pixel_size)
     heights_buildings[heights_buildings <= heights_terrain] = NULL_HEIGHT
 
     heights_trees_dir_path = os.path.join(data_dir_path, "heights", "trees", aggreg_string)
-    heights_trees = get_heights(heights_trees_dir_path, point_sw, point_nw, point_se, pixel_size)
+    heights_trees = get_heights(heights_trees_dir_path, point_sw, width, height, pixel_size)
     heights_trees[heights_trees <= heights_terrain] = NULL_HEIGHT
     
     # Get masks
     mask_roads_dir_path = os.path.join(data_dir_path, "masks", "roads", aggreg_string)
-    mask_roads = get_mask(mask_roads_dir_path, point_sw, point_nw, point_se, pixel_size)
+    mask_roads = get_mask(mask_roads_dir_path, point_sw, width, height, pixel_size)
 
     mask_green_dir_path = os.path.join(data_dir_path, "masks", "green", aggreg_string)
-    mask_green = get_mask(mask_green_dir_path, point_sw, point_nw, point_se, pixel_size)
+    mask_green = get_mask(mask_green_dir_path, point_sw, width, height, pixel_size)
 
     mask_water_dir_path = os.path.join(data_dir_path, "masks", "water", aggreg_string)
-    mask_water = get_mask(mask_water_dir_path, point_sw, point_nw, point_se, pixel_size)
+    mask_water = get_mask(mask_water_dir_path, point_sw, width, height, pixel_size)
 
-    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+    n_rows, n_cols = get_contents.compute_shape(width, height, pixel_size)
+    print(n_rows)
+    print(n_cols)
     n_rows_tile = n_rows // tiles_y
     n_cols_tile = n_cols // tiles_x
 
@@ -114,6 +116,9 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
 
             offset_x = min_x 
             offset_y = min_y
+
+            print(min_x)
+            print(max_x)
 
             heights_terrain_tile = heights_terrain[min_y:max_y, min_x:max_x]
             heights_buildings_tile = heights_buildings[min_y:max_y, min_x:max_x]
@@ -191,19 +196,13 @@ def main():
     # Convert coordinates
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
     w, s = transformer.transform(sw_lat, sw_lng)
-
-    # TODO: compute point from distance AND angle
-    e = int(w + width)
-    n = int(s + height)
-    point_sw = np.array([w, s])
-    point_nw = np.array([w, n])
-    point_se = np.array([e, s])
+    point_sw = np.array([w, s], dtype=np.int32)
 
     model_dir_out = os.path.join(dir_out, f"{model_name}_{output_format}")
     if not os.path.exists(model_dir_out):
         os.mkdir(model_dir_out)
 
-    generate_model_color(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format)
+    generate_model_color(data_dir, dir_out, point_sw, width, height, tiles_x, tiles_y, aggreg_size, model_name, output_format)
     generate_meshlab_project(dir_out, tiles_x, tiles_y, model_name, output_format)
 
 if __name__ == "__main__":
