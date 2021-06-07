@@ -46,7 +46,8 @@ def generate_meshlab_project(dir_out, tiles_x, tiles_y, model_name, output_forma
     s += "<RasterGroup/>\n"
     s += "</MeshLabProject>\n"
 
-    file_path = os.path.join(dir_out, f"{model_name}.mlp")
+    model_dir_out = os.path.join(dir_out, f"{model_name}_{output_format}")
+    file_path = os.path.join(model_dir_out, f"{model_name}.mlp")
     with open(file_path, "w+") as fd:
         fd.write(s) 
 
@@ -98,6 +99,8 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
 
     terrain_min_height_global = heights_terrain.min()
 
+    model_dir_out = os.path.join(dir_out, f"{model_name}_{output_format}")
+
     for tile_x in range(tiles_x):
         for tile_y in range(tiles_y):
 
@@ -134,32 +137,32 @@ def generate_model_color(data_dir_path, dir_out, point_sw, point_nw, point_se, t
 
             # Save terrain
             file_terrain_out = f"{model_name} {tile_name}_terrain.{output_format}"
-            file_out_path = os.path.join(dir_out, file_terrain_out)
+            file_out_path = os.path.join(model_dir_out, file_terrain_out)
             ms_terrain.save_current_mesh(file_out_path)
             
             # Save roads
             file_roads_out = f"{model_name} {tile_name}_roads.{output_format}"
-            file_out_path = os.path.join(dir_out, file_roads_out)
+            file_out_path = os.path.join(model_dir_out, file_roads_out)
             ms_roads.save_current_mesh(file_out_path)
             
             # Save green
             file_green_out = f"{model_name} {tile_name}_green.{output_format}"
-            file_out_path = os.path.join(dir_out, file_green_out)
+            file_out_path = os.path.join(model_dir_out, file_green_out)
             ms_green.save_current_mesh(file_out_path)
 
             # Save water
             file_water_out = f"{model_name} {tile_name}_water.{output_format}"
-            file_out_path = os.path.join(dir_out, file_water_out)
+            file_out_path = os.path.join(model_dir_out, file_water_out)
             ms_water.save_current_mesh(file_out_path)
 
             # Save buildings
             file_buildings_out = f"{model_name} {tile_name}_buildings.{output_format}"
-            file_out_path = os.path.join(dir_out, file_buildings_out)
+            file_out_path = os.path.join(model_dir_out, file_buildings_out)
             ms_buildings.save_current_mesh(file_out_path)
 
             # Save trees
             file_trees_out = f"{model_name} {tile_name}_trees.{output_format}"
-            file_out_path = os.path.join(dir_out, file_trees_out)
+            file_out_path = os.path.join(model_dir_out, file_trees_out)
             ms_trees.save_current_mesh(file_out_path)
 
 def main():
@@ -168,11 +171,11 @@ def main():
     dir_out = r"C:\Users\traff\source\repos\Locality.Modelling\data\models"
 
     if len(sys.argv) < 10:
-        print("Usage: <center_lat> <center_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name> <output_format>")
+        print("Usage: <sw_lat> <sw_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name> <output_format>")
         return
     
-    center_lat = float(sys.argv[1])
-    center_lng = float(sys.argv[2])
+    sw_lat = float(sys.argv[1])
+    sw_lng = float(sys.argv[2])
     width = int(sys.argv[3])
     height = int(sys.argv[4])
     tiles_x = int(sys.argv[5])
@@ -187,19 +190,21 @@ def main():
 
     # Convert coordinates
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
-    x, y = transformer.transform(center_lat, center_lng)
-    center = np.array([x, y])
+    w, s = transformer.transform(sw_lat, sw_lng)
 
     # TODO: compute point from distance AND angle
-    w = int(x - width/2)
-    e = int(x + width/2)
-    s = int(y - height/2)
-    n = int(y + height/2)
+    e = int(w + width)
+    n = int(s + height)
     point_sw = np.array([w, s])
     point_nw = np.array([w, n])
     point_se = np.array([e, s])
 
+    model_dir_out = os.path.join(dir_out, f"{model_name}_{output_format}")
+    if not os.path.exists(model_dir_out):
+        os.mkdir(model_dir_out)
+
     generate_model_color(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format)
     generate_meshlab_project(dir_out, tiles_x, tiles_y, model_name, output_format)
 
-main()
+if __name__ == "__main__":
+    main()

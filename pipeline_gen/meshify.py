@@ -1,14 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pymeshlab
+from locality import constants
+import sys
 
-NULL_HEIGHT = -1
-BOTTOM_HEIGHT_DISTANCE = -2
-INTERMEDIATE_HEIGHT_DISTANCE = 1
+BOTTOM_HEIGHT_DISTANCE = 3
+INTERMEDIATE_HEIGHT_DISTANCE = 2
+
+MIN_NULL_HEIGHT = -1000000
 
 def get_intermediate_heights(heights):
     intermediate = heights - INTERMEDIATE_HEIGHT_DISTANCE
-    intermediate[intermediate == NULL_HEIGHT - INTERMEDIATE_HEIGHT_DISTANCE] = NULL_HEIGHT
+    intermediate[intermediate == constants.NULL_HEIGHT - INTERMEDIATE_HEIGHT_DISTANCE] = constants.NULL_HEIGHT
     return intermediate
 
 def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads, mask_green, mask_water, offset_x, offset_y, pixel_size, terrain_min_height_global):
@@ -30,29 +33,35 @@ def meshify_color(heights_terrain, heights_buildings, heights_trees, mask_roads,
     mask_green[mask_water] = False
     mask_green[mask_roads] = False
 
-    heights_roads = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
+    heights_roads = np.full((n_rows, n_cols), constants.NULL_HEIGHT, dtype=np.float32)
     mask_roads = expand_mask(mask_roads)
     heights_roads[mask_roads] = heights_terrain[mask_roads]
     heights_roads_intermediate = get_intermediate_heights(heights_roads)
     ms_roads = meshify_terrain_features(heights_roads, heights_roads_intermediate, offset_x, offset_y, pixel_size)
 
-    heights_green = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
+    heights_green = np.full((n_rows, n_cols), constants.NULL_HEIGHT, dtype=np.float32)
     mask_green = expand_mask(mask_green)
     heights_green[mask_green] = heights_terrain[mask_green]
     heights_green_intermediate = get_intermediate_heights(heights_green)
     ms_green = meshify_terrain_features(heights_green, heights_green_intermediate, offset_x, offset_y, pixel_size)
 
-    heights_water = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
+    heights_water = np.full((n_rows, n_cols), constants.NULL_HEIGHT, dtype=np.float32)
     mask_water = expand_mask(mask_water)
     heights_water[mask_water] = heights_terrain[mask_water]
     heights_water_intermediate = get_intermediate_heights(heights_water)
     ms_water = meshify_terrain_features(heights_water, heights_water_intermediate, offset_x, offset_y, pixel_size)
 
-    heights_terrain_expanded = np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
+    heights_terrain_expanded = np.full((n_rows, n_cols), constants.NULL_HEIGHT, dtype=np.float32)
     mask_terrain_expanded = expand_mask(mask_terrain)
     heights_terrain_expanded[mask_terrain_expanded] = heights_terrain[mask_terrain_expanded]
+
+    heights_roads_intermediate[heights_roads_intermediate == constants.NULL_HEIGHT] = MIN_NULL_HEIGHT
+    heights_green_intermediate[heights_green_intermediate == constants.NULL_HEIGHT] = MIN_NULL_HEIGHT
+    heights_water_intermediate[heights_water_intermediate == constants.NULL_HEIGHT] = MIN_NULL_HEIGHT
     heights_terrain_intermediate = np.maximum(heights_roads_intermediate, heights_green_intermediate)
     heights_terrain_intermediate = np.maximum(heights_terrain_intermediate, heights_water_intermediate)
+    heights_terrain_intermediate[heights_terrain_intermediate == MIN_NULL_HEIGHT] = constants.NULL_HEIGHT
+
     bottom_height = terrain_min_height_global - BOTTOM_HEIGHT_DISTANCE
     ms_terrain = meshify_terrain(heights_terrain_expanded, heights_terrain_intermediate, mask_terrain, offset_x, offset_y, pixel_size, bottom_height)
 
@@ -183,10 +192,10 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.empty((0,3), dtype=np.int32)
 
     # Compute corners
-    nw = heights_top[:n_rows-1,:n_cols-1] != NULL_HEIGHT
-    sw = heights_top[1:,:n_cols-1] != NULL_HEIGHT
-    ne = heights_top[:n_rows-1,1:] != NULL_HEIGHT
-    se = heights_top[1:,1:] != NULL_HEIGHT
+    nw = heights_top[:n_rows-1,:n_cols-1] != constants.NULL_HEIGHT
+    sw = heights_top[1:,:n_cols-1] != constants.NULL_HEIGHT
+    ne = heights_top[:n_rows-1,1:] != constants.NULL_HEIGHT
+    se = heights_top[1:,1:] != constants.NULL_HEIGHT
 
     top_left_idxs = np.array([3, 1, 0])
     bot_right_idxs = np.array([3, 2, 1])
@@ -267,8 +276,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, up_bottom_faces[:,bot_right_idxs], axis=0)
 
     # Sideways face - north, bottom
-    left = heights_top[0,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[0,1:] != NULL_HEIGHT
+    left = heights_top[0,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[0,1:] != constants.NULL_HEIGHT
     faces_top_bottom_idxs = np.logical_or(np.logical_not(left), np.logical_not(right))
     faces_top = np.arange(n_cols-1, dtype=np.float32).reshape((-1, 1))
     faces_top = faces_top[faces_top_bottom_idxs]
@@ -280,8 +289,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, faces_top[:,top_left_idxs], axis=0)
     faces = np.append(faces, faces_top[:,bot_right_idxs], axis=0)
     # Sideways face - north, top
-    left = heights_top[0,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[0,1:] != NULL_HEIGHT
+    left = heights_top[0,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[0,1:] != constants.NULL_HEIGHT
     faces_top_bottom_idxs = np.logical_and(left, right)
     faces_top = np.arange(n_cols-1, dtype=np.float32).reshape((-1, 1))
     faces_top = faces_top[faces_top_bottom_idxs]
@@ -294,8 +303,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, faces_top[:,bot_right_idxs], axis=0)
 
     # Sideways face - south, bottom
-    left = heights_top[n_rows-1,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[n_rows-1,1:] != NULL_HEIGHT
+    left = heights_top[n_rows-1,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[n_rows-1,1:] != constants.NULL_HEIGHT
     faces_bot_bottom_idxs = np.logical_or(np.logical_not(left), np.logical_not(right))
     faces_bot = np.arange(n_cols-1, dtype=np.float32).reshape((-1, 1))
     faces_bot = faces_bot[faces_bot_bottom_idxs]
@@ -307,8 +316,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, faces_bot[:,top_left_idxs], axis=0)
     faces = np.append(faces, faces_bot[:,bot_right_idxs], axis=0)
     # Sideways face - south, top
-    left = heights_top[n_rows-1,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[n_rows-1,1:] != NULL_HEIGHT
+    left = heights_top[n_rows-1,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[n_rows-1,1:] != constants.NULL_HEIGHT
     faces_bot_bottom_idxs = np.logical_and(left, right)
     faces_bot = np.arange(n_cols-1, dtype=np.float32).reshape((-1, 1))
     faces_bot = faces_bot[faces_bot_bottom_idxs]
@@ -323,8 +332,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     offsets_sides = np.arange(0, dem_size-n_cols-n_rows, n_cols-1, dtype=np.float32)
 
     # Sideways face - left, bottom
-    top = heights_top[:n_rows-1,0] != NULL_HEIGHT
-    bot = heights_top[1:,0] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,0] != constants.NULL_HEIGHT
+    bot = heights_top[1:,0] != constants.NULL_HEIGHT
     faces_left_bottom_idxs = np.logical_or(np.logical_not(top), np.logical_not(bot))
     faces_left = np.arange(n_rows-1, dtype=np.float32)
     faces_left = faces_left[faces_left_bottom_idxs]
@@ -338,8 +347,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, faces_left[:,top_right_idxs], axis=0)
     faces = np.append(faces, faces_left[:,bot_left_idxs], axis=0)
     # Sideways face - left, top
-    top = heights_top[:n_rows-1,0] != NULL_HEIGHT
-    bot = heights_top[1:,0] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,0] != constants.NULL_HEIGHT
+    bot = heights_top[1:,0] != constants.NULL_HEIGHT
     faces_left_top_idxs = np.logical_and(top, bot)
     faces_left = np.arange(n_rows-1, dtype=np.float32)
     faces_left = faces_left[faces_left_top_idxs]
@@ -354,8 +363,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, faces_left[:,bot_left_idxs], axis=0)
 
     # Sideways face - right, bottom
-    top = heights_top[:n_rows-1,n_cols-1] != NULL_HEIGHT
-    bot = heights_top[1:,n_cols-1] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,n_cols-1] != constants.NULL_HEIGHT
+    bot = heights_top[1:,n_cols-1] != constants.NULL_HEIGHT
     faces_right_bottom_idxs = np.logical_or(np.logical_not(top), np.logical_not(bot))
     faces_right = np.arange(n_rows-1, dtype=np.float32)
     faces_right = faces_right[faces_right_bottom_idxs]
@@ -369,8 +378,8 @@ def meshify_terrain(heights_top, intermediate_bottom_heights, mask, offset_x, of
     faces = np.append(faces, faces_right[:,top_right_idxs], axis=0)
     faces = np.append(faces, faces_right[:,bot_left_idxs], axis=0)
     # Sideways face - right, top
-    top = heights_top[:n_rows-1,n_cols-1] != NULL_HEIGHT
-    bot = heights_top[1:,n_cols-1] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,n_cols-1] != constants.NULL_HEIGHT
+    bot = heights_top[1:,n_cols-1] != constants.NULL_HEIGHT
     faces_right_top_idxs = np.logical_and(top, bot)
     faces_right = np.arange(n_rows-1, dtype=np.float32)
     faces_right = faces_right[faces_right_top_idxs]
@@ -509,8 +518,8 @@ def meshify_terrain_features(heights_top, intermediate_bottom_heights, offset_x,
     faces = np.append(faces, vertical_w_faces[:,bot_right_idxs], axis=0)
 
     # Sideways faces - upwards
-    left = heights_top[0,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[0,1:] != NULL_HEIGHT
+    left = heights_top[0,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[0,1:] != constants.NULL_HEIGHT
     idxs_sideways_n = np.logical_and(left, right)
     faces_sideways_n = np.arange(n_cols-1, dtype=np.float32)
     faces_sideways_n = faces_sideways_n[idxs_sideways_n]
@@ -524,8 +533,8 @@ def meshify_terrain_features(heights_top, intermediate_bottom_heights, offset_x,
     faces = np.append(faces, faces_sideways_n[:,bot_left_idxs], axis=0)
 
     # Sideways faces - southwards
-    left = heights_top[n_rows-1,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[n_rows-1,1:] != NULL_HEIGHT
+    left = heights_top[n_rows-1,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[n_rows-1,1:] != constants.NULL_HEIGHT
     idxs_sideways_s = np.logical_and(left, right)
     faces_sideways_s = np.arange(n_cols-1, dtype=np.float32)
     faces_sideways_s = faces_sideways_s[idxs_sideways_s]
@@ -539,8 +548,8 @@ def meshify_terrain_features(heights_top, intermediate_bottom_heights, offset_x,
     faces = np.append(faces, faces_sideways_s[:,bot_left_idxs], axis=0)
 
     # Sideways faces - left
-    top = heights_top[:n_rows-1,0] != NULL_HEIGHT
-    bot = heights_top[1:,0] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,0] != constants.NULL_HEIGHT
+    bot = heights_top[1:,0] != constants.NULL_HEIGHT
     idxs_sideways_w = np.logical_and(top, bot)
     faces_sideways_w = np.arange(0, dem_size-n_cols, n_cols, dtype=np.float32)
     faces_sideways_w = faces_sideways_w[idxs_sideways_w]
@@ -554,8 +563,8 @@ def meshify_terrain_features(heights_top, intermediate_bottom_heights, offset_x,
     faces = np.append(faces, faces_sideways_w[:,bot_left_idxs], axis=0)
 
     # Sideways faces - right
-    top = heights_top[:n_rows-1,n_cols-1] != NULL_HEIGHT
-    bot = heights_top[1:,n_cols-1] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,n_cols-1] != constants.NULL_HEIGHT
+    bot = heights_top[1:,n_cols-1] != constants.NULL_HEIGHT
     idxs_sideways_e = np.logical_and(top, bot)
     faces_sideways_e = np.arange(0, dem_size-n_cols, n_cols, dtype=np.float32)
     faces_sideways_e = faces_sideways_e[idxs_sideways_e]
@@ -762,8 +771,8 @@ def meshify_buildings_trees(heights_top, intermediate_bottom_heights, offset_x, 
     faces = np.append(faces, nw_se_sw_faces[:,side_idxs_2], axis=0)
 
     # Sideways faces - upwards
-    left = heights_top[0,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[0,1:] != NULL_HEIGHT
+    left = heights_top[0,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[0,1:] != constants.NULL_HEIGHT
     idxs_sideways_n = np.logical_and(left, right)
     faces_sideways_n = np.arange(n_cols-1, dtype=np.float32)
     faces_sideways_n = faces_sideways_n[idxs_sideways_n]
@@ -777,8 +786,8 @@ def meshify_buildings_trees(heights_top, intermediate_bottom_heights, offset_x, 
     faces = np.append(faces, faces_sideways_n[:,bot_left_idxs], axis=0)
 
     # Sideways faces - southwards
-    left = heights_top[n_rows-1,:n_cols-1] != NULL_HEIGHT
-    right = heights_top[n_rows-1,1:] != NULL_HEIGHT
+    left = heights_top[n_rows-1,:n_cols-1] != constants.NULL_HEIGHT
+    right = heights_top[n_rows-1,1:] != constants.NULL_HEIGHT
     idxs_sideways_s = np.logical_and(left, right)
     faces_sideways_s = np.arange(n_cols-1, dtype=np.float32)
     faces_sideways_s = faces_sideways_s[idxs_sideways_s]
@@ -792,8 +801,8 @@ def meshify_buildings_trees(heights_top, intermediate_bottom_heights, offset_x, 
     faces = np.append(faces, faces_sideways_s[:,bot_left_idxs], axis=0)
 
     # Sideways faces - left
-    top = heights_top[:n_rows-1,0] != NULL_HEIGHT
-    bot = heights_top[1:,0] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,0] != constants.NULL_HEIGHT
+    bot = heights_top[1:,0] != constants.NULL_HEIGHT
     idxs_sideways_w = np.logical_and(top, bot)
     faces_sideways_w = np.arange(0, dem_size-n_cols, n_cols, dtype=np.float32)
     faces_sideways_w = faces_sideways_w[idxs_sideways_w]
@@ -807,8 +816,8 @@ def meshify_buildings_trees(heights_top, intermediate_bottom_heights, offset_x, 
     faces = np.append(faces, faces_sideways_w[:,bot_left_idxs], axis=0)
 
     # Sideways faces - right
-    top = heights_top[:n_rows-1,n_cols-1] != NULL_HEIGHT
-    bot = heights_top[1:,n_cols-1] != NULL_HEIGHT
+    top = heights_top[:n_rows-1,n_cols-1] != constants.NULL_HEIGHT
+    bot = heights_top[1:,n_cols-1] != constants.NULL_HEIGHT
     idxs_sideways_e = np.logical_and(top, bot)
     faces_sideways_e = np.arange(0, dem_size-n_cols, n_cols, dtype=np.float32)
     faces_sideways_e = faces_sideways_e[idxs_sideways_e]

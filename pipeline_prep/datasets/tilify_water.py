@@ -4,7 +4,7 @@ from shapely.geometry import Polygon
 from rasterio.crs import CRS
 import os
 
-INPUT_FILE_PATH = r"D:\data\datasets\raw\OSM_water\water_union.shp"
+INPUT_FILE_PATH = r"D:\data\datasets\raw\OSM_water\water_no_bridges.shp"
 OUTPUT_DIR_PATH = r"D:\data\datasets\OSM_water\10x10"
 
 BLOCKS_FILE_PATH = r"D:\data\metadata\10x10 km blocks.csv"

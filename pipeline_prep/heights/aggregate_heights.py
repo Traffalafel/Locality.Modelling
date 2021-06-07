@@ -74,33 +74,29 @@ def save(heights, transform, file_path, crs):
     )
     dataset_out.write(heights, 1)
 
-def aggregate_DEMs(dir_in_path, dir_out_path):
+def aggregate_DEMs(file_name, heights_dir_path):
 
-    file_names = get_dir_file_names(dir_in_path)
+    heights_dir_in_path = os.path.join(heights_dir_path, "1x1")
+    heights_dir_out_path = os.path.join(heights_dir_path, "2x2")
 
-    for file_name in file_names:
+    file_name_tif = file_name + ".tif"
+    file_in_path = os.path.join(heights_dir_in_path, file_name_tif)
+    dataset = rasterio.open(file_in_path)
+    heights_1x1 = dataset.read(1)
 
-        file_name_raster = file_name + ".tif"
-        file_path_out = os.path.join(dir_out_path, file_name_raster)
-        if os.path.exists(file_path_out):
-            print(f"Output {file_path_out} already exists, skipping")
-            continue
+    heights_2x2, transform_2x2 = aggregate(heights_1x1, dataset.bounds, 2, AGGREG_METHOD)
 
-        file_in_path = os.path.join(dir_in_path, file_name_raster)
-        dataset = rasterio.open(file_in_path)
-        heights_1x1 = dataset.read(1)
-        heights_2x2, transform_2x2 = aggregate(heights_1x1, dataset.bounds, 2, AGGREG_METHOD)
-        file_path_out = os.path.join(dir_out_path, file_name_raster)
-        save(heights_2x2, transform_2x2, file_path_out, dataset.crs)
-
-        print(f"{file_in_path} aggregated")
+    file_path_out = os.path.join(heights_dir_out_path, file_name_tif)
+    save(heights_2x2, transform_2x2, file_path_out, dataset.crs)
     
 def main():
     
+    n_args = len(sys.argv)
+    if n_args != 3:
+        print(f"Args: <file_name> <heights_dir_path>")
+        
+    file_name = sys.argv[1]
     heights_dir_path = sys.argv[1]
-
-    buildings_dir_1x1 = os.path.join(heights_dir_path, "1x1")
-    buildings_dir_2x2 = os.path.join(heights_dir_path, "2x2")
-    aggregate_DEMs(buildings_dir_1x1, buildings_dir_2x2)
+    aggregate_DEMs(file_name, heights_dir_path)
 
 main()
