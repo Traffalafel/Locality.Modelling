@@ -5,11 +5,10 @@ import rasterio.transform
 import rasterio.coords
 from rasterio.io import MemoryFile
 from rasterio.crs import CRS
-from shapely.geometry import Polygon
 import os
 import math
 import numpy as np
-import matplotlib.pyplot as plt
+from locality import utils, constants
 
 # Constants
 TIF_FILE_KMS = 1000
@@ -40,7 +39,7 @@ def compute_shape(width, height, pixel_size):
     n_rows = int(height / pixel_size)
     return n_rows, n_cols
 
-def get_contents(heights_dir_path, point_sw, width, height, pixel_size):
+def get_contents(heights_dir_path, point_sw, width, height, pixel_size, null_val=constants.NULL_HEIGHT):
     
     bound_w = point_sw[0]
     bound_s = point_sw[1]
@@ -62,15 +61,39 @@ def get_contents(heights_dir_path, point_sw, width, height, pixel_size):
                 datasets.append(ds)
             else:
                 print(f"File doesn't exist: {file_path}")
-                raise Exception()
+                width_pixels = int(TIF_FILE_KMS / pixel_size)
+                height_pixels = int(TIF_FILE_KMS / pixel_size)
+                transform = rasterio.transform.from_bounds(
+                    west = file_x * TIF_FILE_KMS,
+                    south = file_y* TIF_FILE_KMS,
+                    east = (file_x+1) * TIF_FILE_KMS,
+                    north = (file_y+1) * TIF_FILE_KMS,
+                    width = width_pixels,
+                    height = height_pixels
+                )
+                crs = CRS.from_epsg(ETRS89_UTM32N)
+                memfile = MemoryFile()
+                ds = memfile.open(
+                    driver="GTiff",
+                    width=width_pixels,
+                    height=height_pixels,
+                    count=1,
+                    crs=crs,
+                    transform=transform,
+                    dtype=np.float32
+                )
+                array = np.full((height_pixels, width_pixels), null_val, dtype=np.float32)
+                ds.write(array, 1)
+                datasets.append(ds)
 
     contents, transform  = rasterio.merge.merge(datasets)
     heights = contents[0,:,:]
     heights = np.flip(heights, axis=0)
+    heights = np.transpose(heights, (0, 1))
 
     idx_w = int((bound_w - (min_file_x * TIF_FILE_KMS)) // pixel_size)
     idx_e = int((bound_e - (min_file_x * TIF_FILE_KMS)) // pixel_size)
     idx_s = int((bound_s - (min_file_y * TIF_FILE_KMS)) // pixel_size)
     idx_n = int((bound_n - (min_file_y * TIF_FILE_KMS)) // pixel_size)
 
-    return heights[idx_w:idx_e, idx_s:idx_n]
+    return heights[idx_s:idx_n, idx_w:idx_e]

@@ -6,7 +6,6 @@ conda activate modelling
 
 $tmp_dir = Join-Path $data_dir "tmp"
 $heights_dir = Join-Path $data_dir "heights"
-$terrain_heights_dir = Join-Path $heights_dir "terrain"
 
 function clear_directory($dir_path) {
     Get-ChildItem $dir_path | ForEach-Object {
@@ -17,11 +16,20 @@ function clear_directory($dir_path) {
 # Download terrain heights
 clear_directory($tmp_dir)
 & ./download_terrain.ps1 $tile_x $tile_y $tmp_dir
-$terrain_heights_1x1_dir = Join-Path $terrain_heights_dir "1x1"
+$terrain_heights_1x1_dir = Join-Path $heights_dir "terrain" "1x1"
 $terrain_zip_file_path = Join-Path $tmp_dir "$($tile_x)_$($tile_y).zip"
 Expand-Archive $terrain_zip_file_path $terrain_heights_1x1_dir
 Remove-Item $terrain_zip_file_path
 & ./clean_filenames.ps1 $terrain_heights_1x1_dir
+
+# Download surface heights
+clear_directory($tmp_dir)
+& ./download_surface.ps1 $tile_x $tile_y $tmp_dir
+$surface_heights_1x1_dir = Join-Path $heights_dir "surface" "1x1"
+$surface_zip_file_path = Join-Path $tmp_dir "$($tile_x)_$($tile_y).zip"
+Expand-Archive $surface_zip_file_path $surface_heights_1x1_dir
+Remove-Item $surface_zip_file_path
+& ./clean_filenames.ps1 $surface_heights_1x1_dir
 
 # # Prepare masks
 & ./prepare_masks.ps1 $tile_x $tile_y $data_dir

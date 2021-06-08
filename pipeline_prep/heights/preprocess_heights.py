@@ -5,7 +5,8 @@ import numpy as np
 import sys
 from locality import utils, constants
 
-GAUSSIAN_SIZE = 3
+GAUSSIAN_SIZE_BUILDINGS = 3
+GAUSSIAN_SIZE_TREES = 7
 N_PIXELS = int(constants.TILE_SIZE / constants.PIXEL_SIZE)
 
 def blur(heights, heights_terrain, blur_size):
@@ -64,9 +65,9 @@ def preprocess_DEM(file_name, heights_dir_path):
         heights_trees = np.full((N_PIXELS, N_PIXELS), constants.NULL_HEIGHT, dtype=np.float32)
 
     # Clean
-    heights_buildings = blur(heights_buildings, heights_terrain, GAUSSIAN_SIZE)
+    heights_buildings = blur(heights_buildings, heights_terrain, GAUSSIAN_SIZE_BUILDINGS)
 
-    heights_trees = blur(heights_trees, heights_terrain, GAUSSIAN_SIZE)
+    heights_trees = blur(heights_trees, heights_terrain, GAUSSIAN_SIZE_TREES)
     heights_trees = morph(heights_trees, heights_terrain)
 
     # Set pixels to max
@@ -75,11 +76,11 @@ def preprocess_DEM(file_name, heights_dir_path):
 
     # Save buildings 1x1
     buildings_file_path_out = os.path.join(heights_dir_path, "buildings", "1x1", file_name)
-    utils.save_raster(heights_buildings, dataset_terrain.transform, buildings_file_path_out, dataset_terrain.crs)
+    utils.save_raster(heights_buildings, buildings_file_path_out, dataset_terrain.transform)
     
     # Save trees 1x1
     trees_file_path_out = os.path.join(heights_dir_path, "trees", "1x1", file_name)
-    utils.save_raster(heights_trees, dataset_terrain.transform, trees_file_path_out, dataset_terrain.crs)
+    utils.save_raster(heights_trees, trees_file_path_out, dataset_terrain.transform)
 
 def main():
 

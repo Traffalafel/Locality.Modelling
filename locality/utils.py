@@ -71,9 +71,9 @@ def rasterize(dataframe, n_pixels, bounds, all_touched=False):
     )
     return pixels, transform
 
-def save_raster(values, file_path, transform):
+def save_raster(values, file_path_out, transform):
     dataset = rasterio.open(
-        file_path,
+        file_path_out,
         mode="w",
         driver="GTiff",
         width=values.shape[1],

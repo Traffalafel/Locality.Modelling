@@ -74,10 +74,10 @@ def save(heights, transform, file_path, crs):
     )
     dataset_out.write(heights, 1)
 
-def aggregate_DEMs(file_name, heights_dir_path):
+def aggregate_DEMs(file_name, heights_feature_dir_path):
 
-    heights_dir_in_path = os.path.join(heights_dir_path, "1x1")
-    heights_dir_out_path = os.path.join(heights_dir_path, "2x2")
+    heights_dir_in_path = os.path.join(heights_feature_dir_path, "1x1")
+    heights_dir_out_path = os.path.join(heights_feature_dir_path, "2x2")
 
     file_name_tif = file_name + ".tif"
     file_in_path = os.path.join(heights_dir_in_path, file_name_tif)
@@ -93,10 +93,10 @@ def main():
     
     n_args = len(sys.argv)
     if n_args != 3:
-        print(f"Args: <file_name> <heights_dir_path>")
+        print(f"Args: <file_name> <heights_feature_dir_path>")
         
     file_name = sys.argv[1]
-    heights_dir_path = sys.argv[1]
-    aggregate_DEMs(file_name, heights_dir_path)
+    heights_feature_dir_path = sys.argv[2]
+    aggregate_DEMs(file_name, heights_feature_dir_path)
 
 main()

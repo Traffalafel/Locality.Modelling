@@ -1,3 +1,9 @@
+if ($args.length -lt 3)
+{
+    Write-Output "Args: <tile_x> <tile_y> <destination_dir_path>"
+    return
+}
+
 $tile_x = $args[0]
 $tile_y = $args[1]
 $destination_dir_path = $args[2]

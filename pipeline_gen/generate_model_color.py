@@ -56,6 +56,7 @@ def get_heights(path, point_sw, width, height, pixel_size):
     if os.path.exists(path):
         return get_contents.get_contents(path, point_sw, width, height, pixel_size)
     else:
+        print(f"Could not find path {path}")
         return np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
 
 def get_mask(path, point_sw, width, height, pixel_size):
@@ -64,6 +65,7 @@ def get_mask(path, point_sw, width, height, pixel_size):
         mask = get_contents.get_contents(path, point_sw, width, height, pixel_size)
         return mask == 1
     else:
+        print(f"Could not find path {path}")
         return np.full((n_rows, n_cols), False, dtype=bool)
 
 def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_x, tiles_y, aggreg_size, model_name, output_format):
@@ -94,8 +96,6 @@ def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_
     mask_water = get_mask(mask_water_dir_path, point_sw, width, height, pixel_size)
 
     n_rows, n_cols = get_contents.compute_shape(width, height, pixel_size)
-    print(n_rows)
-    print(n_cols)
     n_rows_tile = n_rows // tiles_y
     n_cols_tile = n_cols // tiles_x
 
@@ -110,15 +110,12 @@ def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_
             print(tile_name)
 
             min_x = tile_x * n_cols_tile
-            max_x = (tile_x+1) * n_cols_tile + 1
+            max_x = (tile_x+1) * n_cols_tile
             min_y = tile_y * n_rows_tile
-            max_y = (tile_y+1) * n_rows_tile + 1
+            max_y = (tile_y+1) * n_rows_tile
 
             offset_x = min_x 
             offset_y = min_y
-
-            print(min_x)
-            print(max_x)
 
             heights_terrain_tile = heights_terrain[min_y:max_y, min_x:max_x]
             heights_buildings_tile = heights_buildings[min_y:max_y, min_x:max_x]

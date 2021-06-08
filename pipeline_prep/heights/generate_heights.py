@@ -8,6 +8,7 @@ import pylas
 from locality import utils, constants, interpolate
 
 DIR_MASKS_BUILDINGS = r"D:\data\masks\buildings"
+DIR_HEIGHTS = r"D:\data\heights"
 
 CLASS_NOISE = 1
 CLASS_GROUND = 2
@@ -94,12 +95,12 @@ def erode(heights):
 def generate_buildings(file_path):
     
     dem_size = int(constants.TILE_SIZE / constants.PIXEL_SIZE)
-
     file_name = utils.get_file_name(file_path)
+    file_name_tif = file_name + ".tif"
     bounds = utils.get_file_bounds(file_name)
 
     # Get buildings mask
-    file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, "1x1", file_name + ".tif")
+    file_mask_buildings_path = os.path.join(DIR_MASKS_BUILDINGS, "1x1", file_name_tif)
     if os.path.exists(file_mask_buildings_path):
         dataset_mask_buildings = rasterio.open(file_mask_buildings_path)
         mask_buildings = dataset_mask_buildings.read(1)
@@ -112,6 +113,18 @@ def generate_buildings(file_path):
     kernel = np.ones((5,5))
     mask_buildings = cv.dilate(mask_buildings, kernel, iterations=1)
     mask_buildings = mask_buildings == 1
+
+    # Get surface heights
+    file_heights_surface_path = os.path.join(DIR_HEIGHTS, "surface", "1x1", file_name_tif)
+    if os.path.exists(file_heights_surface_path):
+        dataset_heights_surface = rasterio.open(file_heights_surface_path)
+        heights_surface = dataset_heights_surface.read(1)
+    else:
+        print(f"Could not find surface heights file {file_heights_surface_path}")
+        heights_surface = np.full((dem_size, dem_size), constants.NULL_HEIGHT, dtype=np.float32)
+
+    # Set surface heights that are not buildings to null
+    heights_surface[mask_buildings == False] = constants.NULL_HEIGHT
 
     # Get buildings heights
     las_buildings = pylas.read(file_path)
@@ -136,6 +149,8 @@ def generate_buildings(file_path):
     mask_interpolation_trees = mask_buildings == False
     interpolate.interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=10)
     interpolate.interpolate(heights_buildings, mask_interpolation_trees, limit_v=8, limit_h=10)
+
+    heights_buildings = np.maximum(heights_buildings, heights_surface)
 
     return heights_buildings
 
