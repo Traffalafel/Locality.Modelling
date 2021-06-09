@@ -35,8 +35,8 @@ def get_tif_paths(bounds, tifs_dir_path):
     return file_paths
 
 def compute_shape(width, height, pixel_size):
-    n_cols = int(width / pixel_size)
-    n_rows = int(height / pixel_size)
+    n_cols = math.ceil(width / pixel_size)
+    n_rows = math.ceil(height / pixel_size)
     return n_rows, n_cols
 
 def get_contents(heights_dir_path, point_sw, width, height, pixel_size, null_val=constants.NULL_HEIGHT):
@@ -96,4 +96,6 @@ def get_contents(heights_dir_path, point_sw, width, height, pixel_size, null_val
     idx_s = int((bound_s - (min_file_y * TIF_FILE_KMS)) // pixel_size)
     idx_n = int((bound_n - (min_file_y * TIF_FILE_KMS)) // pixel_size)
 
-    return heights[idx_s:idx_n, idx_w:idx_e]
+    heights_output = heights[idx_s:idx_n, idx_w:idx_e]
+
+    return heights_output

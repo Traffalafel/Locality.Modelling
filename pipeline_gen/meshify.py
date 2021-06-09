@@ -6,8 +6,8 @@ import sys
 
 BOTTOM_HEIGHT_DISTANCE = 3
 INTERMEDIATE_HEIGHT_DISTANCE = 2
-
 MIN_NULL_HEIGHT = -1000000
+VERTICES_SCALE_FACTOR = 0.01
 
 def get_intermediate_heights(heights):
     intermediate = heights - INTERMEDIATE_HEIGHT_DISTANCE
@@ -854,6 +854,9 @@ def generate_vertices(heights, offset_x, offset_y, pixel_size):
     vertices += offset
     vertices = np.append(vertices, heights.reshape(-1, 1), axis=1)
     # vertices = vertices[:,[0,2,1]] # flips y/z
+
+    vertices *= VERTICES_SCALE_FACTOR
+
     return vertices
 
 # Vertices that are located at the bottom on the edges
@@ -891,6 +894,9 @@ def generate_bottom_vertices(n_rows, n_cols, offset_x, offset_y, pixel_size, bot
     heights = np.full((vertices.shape[0], 1), bottom_height, dtype=np.float32)
     vertices = np.append(vertices, heights, axis=1)
     # vertices = vertices[:,[0,2,1]] # flips y/z
+
+    vertices *= VERTICES_SCALE_FACTOR
+
     return vertices
 
 def generate_idxs(n_rows, n_cols):

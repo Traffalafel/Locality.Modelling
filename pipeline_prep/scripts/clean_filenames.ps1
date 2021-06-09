@@ -12,7 +12,17 @@ Get-ChildItem -Path $dir | ForEach-Object {
         $return = Select-String -InputObject $_.BaseName -Pattern $pattern
         $y = $return.Matches.groups[1]
         $x = $return.Matches.groups[2]
-        Rename-Item -Path $_.FullName -NewName "$($x)_$($y)$($_.Extension)" -Force > $null
+
+        $new_path = Join-Path $dir "$($x)_$($y)$($_.Extension)"
+        $already_exists = Test-Path $new_path
+        if (-not $already_exists)
+        {
+            Rename-Item -Path $_.FullName -NewName "$($x)_$($y)$($_.Extension)" > $null
+        }
+        else
+        {
+            Remove-Item $_.FullName
+        }
     }
 
 }

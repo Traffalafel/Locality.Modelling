@@ -73,6 +73,10 @@ def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_
     pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
     aggreg_string = f"{aggreg_size}x{aggreg_size}"
 
+    # Add an extra pixel in each direction
+    width = width + pixel_size
+    height = height + pixel_size
+
     # Get heights
     heights_terrain_dir_path = os.path.join(data_dir_path, "heights", "terrain", aggreg_string)
     heights_terrain = get_heights(heights_terrain_dir_path, point_sw, width, height, pixel_size)
