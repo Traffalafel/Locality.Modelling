@@ -1,15 +1,15 @@
 if ($args.length -lt 3)
 {
-    Write-Output "Args: <tile_x> <tile_y> <destination_dir_path>"
+    Write-Output "Args: <block_x> <block_y> <destination_dir_path>"
     return
 }
 
-$tile_x = $args[0]
-$tile_y = $args[1]
+$block_x = $args[0]
+$block_y = $args[1]
 $destination_dir_path = $args[2]
 
-$file_name_ftp = "PUNKTSKY_$($tile_y)_$($tile_x)_TIF_UTM32-ETRS89.zip"
-$destination_file_name = "$($tile_x)_$($tile_y).zip"
+$file_name_ftp = "PUNKTSKY_$($block_y)_$($block_x)_TIF_UTM32-ETRS89.zip"
+$destination_file_name = "$($block_x)_$($block_y).zip"
 $destination_file_path = Join-Path $destination_dir_path $destination_file_name
 
 $url = "ftp://ftp.kortforsyningen.dk/dhm_danmarks_hoejdemodel/PUNKTSKY/$($file_name_ftp)"

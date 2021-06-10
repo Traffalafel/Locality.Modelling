@@ -1,3 +1,10 @@
+if ($args.length -lt 2)
+{
+    Write-Output "Args: <dir_in_path> <dir_out_path>"
+    return
+}
+
+
 $dir_in_path = $args[0]
 $dir_out_path = $args[1]
 $code_dir = ".."

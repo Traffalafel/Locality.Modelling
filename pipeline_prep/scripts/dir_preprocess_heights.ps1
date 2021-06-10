@@ -1,3 +1,9 @@
+if ($args.length -lt 1)
+{
+    Write-Output "Args: <heights_dir_path>"
+    return
+}
+
 $heights_dir_path = $args[0]
 $code_dir = ".."
 

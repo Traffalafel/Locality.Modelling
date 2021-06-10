@@ -1,9 +1,14 @@
-$tile_x = $args[0]
-$tile_y = $args[1]
+if ($args.Length -lt 3) {
+    Write-Output "Usage: <block_x> <block_y> <data_dir>"
+    return
+}
+
+$block_x = $args[0]
+$block_y = $args[1]
 $data_dir = $args[2]
 $code_dir = "..\"
 
-$file_name = "$($tile_x)_$($tile_y)"
+$file_name = "$($block_x)_$($block_y)"
 $tmp_data_dir = Join-Path $data_dir "tmp"
 $script_split_tile_path = Join-Path $code_dir "datasets" "split_tile.py"
 

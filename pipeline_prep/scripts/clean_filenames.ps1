@@ -1,3 +1,9 @@
+if ($args.length -lt 1)
+{
+    Write-Output "Args: <dir>"
+    return
+}
+
 $dir = $args[0]
 
 $checksums = Join-Path -Path $dir -ChildPath "*.md5"

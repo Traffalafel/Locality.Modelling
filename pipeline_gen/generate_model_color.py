@@ -114,9 +114,9 @@ def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_
             print(tile_name)
 
             min_x = tile_x * n_cols_tile
-            max_x = (tile_x+1) * n_cols_tile
+            max_x = (tile_x+1) * n_cols_tile + 1
             min_y = tile_y * n_rows_tile
-            max_y = (tile_y+1) * n_rows_tile
+            max_y = (tile_y+1) * n_rows_tile + 1
 
             offset_x = min_x 
             offset_y = min_y
