@@ -10,7 +10,7 @@ $code_dir = ".."
 $script_path = Join-Path $code_dir "heights" "aggregate_heights.py"
 
 $1x1_heights_path = Join-Path $dir_path "1x1"
-echo $1x1_heights_path
+Write-Output $1x1_heights_path
 
 Get-ChildItem $1x1_heights_path -Filter "*.tif" | ForEach-Object {
     $file_name = $_.BaseName
@@ -20,10 +20,9 @@ Get-ChildItem $1x1_heights_path -Filter "*.tif" | ForEach-Object {
     $already_exists = Test-Path $file_out_path
     if ($already_exists)
     {
-        echo "Skiping $($file_name)"
         return
     }
 
     python $script_path $file_name $dir_path
-    echo "Aggregated $($file_name)"
+    Write-Output "Aggregated $($file_name)"
 }

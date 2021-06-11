@@ -65,13 +65,12 @@ def main():
     
     n_args = len(sys.argv)
     if n_args < 3:
-        print("Takes 2 args")
-    dir_in_path = sys.argv[1]
+        print("Args: <file_in_path> <dir_out_path>")
+
+    file_in_path = sys.argv[1]
     dir_out_path = sys.argv[2]
 
-    files_in_paths = utils.get_directory_file_paths(dir_in_path, extension='shp')
-    for file_in_path in files_in_paths:
-        mask_green(file_in_path, dir_out_path)
+    mask_green(file_in_path, dir_out_path)
 
 if __name__ == "__main__":
     main()
