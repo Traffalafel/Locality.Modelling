@@ -55,7 +55,7 @@ def mask_green(file_path_in, dir_out_path):
     file_path_1x1 = os.path.join(dir_out_path, "1x1", file_name_tif)
     pixels_1x1, transform_1x1 = utils.rasterize(df, constants.N_PIXELS_1x1, bounds, ALL_TOUCHED)
     utils.save_raster(pixels_1x1, file_path_1x1, transform_1x1)
-
+    
     # Rasterize and save 2x2 
     file_path_2x2 = os.path.join(dir_out_path, "2x2", file_name_tif)
     pixels_2x2, transform_2x2 = utils.rasterize(df, constants.N_PIXELS_2x2, bounds, ALL_TOUCHED)

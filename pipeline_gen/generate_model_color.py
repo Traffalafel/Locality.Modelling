@@ -19,6 +19,9 @@ CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
 NULL_HEIGHT = -1
 
+HEIGHT_BOOST_TREES = 1.1
+HEIGHT_BOOST_BUILDINGS = 1.2
+
 def generate_meshimport(model_name, tile_name, mesh_type, color_string, output_format):
 
     s = f'<MLMesh label="{tile_name}_{mesh_type}" visible="1" filename="{model_name} {tile_name}_{mesh_type}.{output_format}">\n'
@@ -84,10 +87,12 @@ def generate_model_color(data_dir_path, dir_out, point_sw, width, height, tiles_
     heights_buildings_dir_path = os.path.join(data_dir_path, "heights", "buildings", aggreg_string)
     heights_buildings = get_heights(heights_buildings_dir_path, point_sw, width, height, pixel_size)
     heights_buildings[heights_buildings <= heights_terrain] = NULL_HEIGHT
+    heights_buildings[heights_buildings != NULL_HEIGHT] *= HEIGHT_BOOST_BUILDINGS
 
     heights_trees_dir_path = os.path.join(data_dir_path, "heights", "trees", aggreg_string)
     heights_trees = get_heights(heights_trees_dir_path, point_sw, width, height, pixel_size)
     heights_trees[heights_trees <= heights_terrain] = NULL_HEIGHT
+    heights_trees[heights_trees != NULL_HEIGHT] *= HEIGHT_BOOST_TREES
     
     # Get masks
     mask_roads_dir_path = os.path.join(data_dir_path, "masks", "roads", aggreg_string)

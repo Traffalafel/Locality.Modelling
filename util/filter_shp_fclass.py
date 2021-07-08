@@ -2,7 +2,7 @@ import geopandas
 import sys
 from os.path import join
 
-FILE_IN_PATH = r"D:\data\datasets\OSM_roads\10x10\57_622.shp"
+FILE_IN_PATH = r"D:\data\datasets\OSM_roads\10x10\58_613.shp"
 DIR_OUT_PATH = r"C:\Users\traff\source\repos\Locality.Modelling\data\shps"
 
 # Constants

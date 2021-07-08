@@ -187,7 +187,7 @@ def generate_trees(file_path):
     kernel = np.ones((5,5))
     mask_interpolation_trees = cv.erode(mask_interpolation_trees, kernel, iterations=1)
     mask_interpolation_trees = mask_interpolation_trees == 1
-    interpolate(heights_trees, mask_interpolation_trees, limit_v=None, limit_h=6)
+    interpolate.interpolate(heights_trees, mask_interpolation_trees, limit_v=None, limit_h=6)
     erode(heights_trees)
 
     return heights_trees
@@ -217,8 +217,6 @@ def generate_DEM(file_path, dir_out):
     # Save trees
     file_path_trees = os.path.join(dir_out, "trees", "raw", f"{file_name}.tif")
     utils.save_raster(heights_trees, file_path_trees, transform)
-
-    print(file_path_trees)
 
 def main():
 

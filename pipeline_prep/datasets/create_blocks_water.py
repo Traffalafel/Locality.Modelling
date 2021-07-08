@@ -4,6 +4,8 @@ from shapely.geometry import Polygon
 from rasterio.crs import CRS
 import os
 
+# Splits dataset shapefile into 10x10 km blocks
+
 INPUT_FILE_PATH = r"D:\data\datasets\raw\OSM_water\water_no_bridges.shp"
 OUTPUT_DIR_PATH = r"D:\data\datasets\OSM_water\10x10"
 

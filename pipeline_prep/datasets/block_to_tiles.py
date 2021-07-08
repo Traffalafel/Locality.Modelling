@@ -3,7 +3,7 @@ import sys
 import geopandas
 from locality import constants, utils
 
-# Splits 10km tiles to 1km tiles
+# Splits 10x10km block shapefile to 1x1km tile shapefiles
 
 TILE_SIZE_10KM = 10000
 TILE_SIZE_1KM = 1000
