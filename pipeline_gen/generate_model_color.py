@@ -7,7 +7,7 @@ import pymeshlab
 from locality import get_contents
 from meshify import meshify_color
 
-# ARGS
+# Arguments
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
 ROADS_TIF_DIR_PATH = r"D:\PrintCitiesData\roads_tif"
 BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
@@ -20,7 +20,7 @@ CRS_ETRS89 = 25832
 NULL_HEIGHT = -1
 
 HEIGHT_BOOST_TREES = 1.1
-HEIGHT_BOOST_BUILDINGS = 1.2
+HEIGHT_BOOST_BUILDINGS = 1.1
 
 def generate_meshimport(model_name, tile_name, mesh_type, color_string, output_format):
 

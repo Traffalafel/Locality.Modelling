@@ -1,0 +1,7 @@
+- Load objects
+- Define materials 
+- Set object materials
+- Set camera position
+- Create lighting objects
+- Set lighting object position and direction
+- RENDER!
