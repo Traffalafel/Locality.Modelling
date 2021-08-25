@@ -1,7 +1,6 @@
-- Load objects
-- Define materials 
+- Load objects (X)
+- Import materials (X) 
 - Set object materials
-- Set camera position
-- Create lighting objects
-- Set lighting object position and direction
+- Setup camera (X)
+- Setpu lighting
 - RENDER!

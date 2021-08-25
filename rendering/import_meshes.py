@@ -19,10 +19,11 @@ def import_mesh(path):
 
 for mesh_type in mesh_types:
     
-    mesh_file_name = f"{model_name} {mesh_position}_{mesh_type}.{file_extension}"    
+    mesh_name = f"{model_name} {mesh_position}_{mesh_type}"
+    mesh_file_name = f"{mesh_name}.{file_extension}"  
     mesh_file_path = os.path.join(mesh_file_dir, mesh_file_name)
-    print(mesh_file_name)
-    
+
     import_mesh(mesh_file_path)
-    bpy.data.objects[0].name = mesh_type
     
+    mesh_name_new = f"{mesh_position} {mesh_type}"
+    bpy.data.objects.get(mesh_name).name = mesh_name_new
