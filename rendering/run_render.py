@@ -1,7 +1,7 @@
-import os 
 import sys
 
-sys.path.append(os.getcwd())
+blender_render_path = r"C:\Users\traff\source\repos\Locality.Modelling\rendering"
+sys.path.append(blender_render_path)
 from blender_render import clear_objects, render, import_materials
 
 def main():
