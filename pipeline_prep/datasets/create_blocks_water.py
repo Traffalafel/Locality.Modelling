@@ -4,11 +4,15 @@ from shapely.geometry import Polygon
 from rasterio.crs import CRS
 import os
 
+#
 # Splits dataset shapefile into 10x10 km blocks
+#
 
+# Arguments
 INPUT_FILE_PATH = r"D:\data\datasets\raw\OSM_water\water_no_bridges.shp"
 OUTPUT_DIR_PATH = r"D:\data\datasets\OSM_water\10x10"
 
+# Constants
 BLOCKS_FILE_PATH = r"D:\data\metadata\10x10 km blocks.csv"
 TILE_SIZE_METRES = 10000
 ETRS89_UTM32N = 25832

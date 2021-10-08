@@ -45,7 +45,7 @@ def main():
     n_args = len(sys.argv)
     if n_args < 3:
         print("Not enough args")
-        return 
+        return
 
     file_in_path = sys.argv[1]
     dir_out_path = sys.argv[2]

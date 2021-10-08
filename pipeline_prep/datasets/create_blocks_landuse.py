@@ -4,10 +4,16 @@ from shapely.geometry import Polygon
 from rasterio.crs import CRS
 import os
 
+# 
+# Splits dataset shapefile into 10x10 km blocks
+# 
+
+# Arguments
 INPUT_FILE_PATH = r"D:\data\datasets\raw\OSM\gis_osm_landuse_a_free_1.shp"
 OUTPUT_DIR_PATH = r"D:\data\datasets\OSM_landuse\10x10"
-
 BLOCKS_FILE_PATH = r"D:\data\metadata\10x10 km blocks.csv"
+
+# Constants
 TILE_SIZE_METRES = 10000
 ETRS89_UTM32N = 25832
 
