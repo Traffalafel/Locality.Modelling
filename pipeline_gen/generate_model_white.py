@@ -4,8 +4,10 @@ import rasterio
 from pyproj import Transformer
 import os
 import pymeshlab
-from get_contents import get_contents, compute_shape
+from locality import constants
+from locality import get_contents
 from meshify import meshify_white
+from pipeline_gen.generate_model_color import NULL_HEIGHT
 
 # ARGS
 HEIGHTS_TIFS_DIR_PATH = r"D:\PrintCitiesData\DHM_overflade_blurred_3"
@@ -15,35 +17,39 @@ BUILDINGS_TIF_DIR_PATH = r"D:\PrintCitiesData\buildings_tif"
 # Constants
 DEFAULT_OUTPUT_FORMAT = "stl"
 ORIGINAL_PIXEL_SIZE = 0.4
+NULL_HEIGHT = -1
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
-NULL_HEIGHT = -1
 HEIGHT_OFFSET = 8
 HEIGHTS_MULTIPLIER = 1
 
-def get_heights(path, point_sw, point_nw, point_se, pixel_size):
-    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+def get_heights(path, point_sw, width, height, pixel_size):
+    n_rows, n_cols = get_contents.compute_shape(width, height, pixel_size)
     if os.path.exists(path):
-        return get_contents(path, point_sw, point_nw, point_se, pixel_size)
+        return get_contents.get_contents(path, point_sw, width, height, pixel_size)
     else:
-        print(f"Could not find any file for {path}. Using NULL_HEIGHT={NULL_HEIGHT} instead...")
+        print(f"Could not find path {path}")
         return np.full((n_rows, n_cols), NULL_HEIGHT, dtype=np.float32)
 
-def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format):
+def generate_model_white(data_dir_path, dir_out, point_sw, width, height, tiles_x, tiles_y, aggreg_size, model_name, output_format):
 
     pixel_size = ORIGINAL_PIXEL_SIZE * aggreg_size
     aggreg_string = f"{aggreg_size}x{aggreg_size}"
 
+    # Add an extra pixel in each direction
+    width = width + pixel_size
+    height = height + pixel_size
+
     # Get heights
     heights_dir_path = os.path.join(data_dir_path, "heights", "surface", aggreg_string)
-    heights = get_heights(heights_dir_path, point_sw, point_nw, point_se, pixel_size)
+    heights = get_heights(heights_dir_path, point_sw, width, height, pixel_size)
 
     height_min = np.min(heights)
     heights -= height_min
     heights *= HEIGHTS_MULTIPLIER
     heights += HEIGHT_OFFSET
 
-    n_rows, n_cols = compute_shape(point_sw, point_nw, point_se, pixel_size)
+    n_rows, n_cols = get_contents.compute_shape(width, height, pixel_size)
     n_rows_tile = n_rows // tiles_y
     n_cols_tile = n_cols // tiles_x
 
@@ -51,7 +57,7 @@ def generate_model_white(data_dir_path, dir_out, point_sw, point_nw, point_se, t
         for tile_y in range(tiles_y):
 
             tile_name = f"{tile_x+1}_{tile_y+1}"
-            print(f"Processing {tile_name}")
+            print(f"{tile_name}")
 
             min_x = tile_x * n_cols_tile
             max_x = (tile_x+1) * n_cols_tile + 1
@@ -75,12 +81,12 @@ def main():
     data_dir = r"D:\data"
     dir_out = r"C:\Users\traff\source\repos\Locality.Modelling\data\models"
 
-    if len(sys.argv) < 9:
-        print("Usage: <center_lat> <center_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name>")
+    if len(sys.argv) < 10:
+        print("Usage: <sw_lat> <sw_lng> <width> <height> <tiles_x> <tiles_y> <aggreg_size> <model_name> <output_format>")
         return
     
-    center_lat = float(sys.argv[1])
-    center_lng = float(sys.argv[2])
+    sw_lat = float(sys.argv[1])
+    sw_lng = float(sys.argv[2])
     width = int(sys.argv[3])
     height = int(sys.argv[4])
     tiles_x = int(sys.argv[5])
@@ -95,18 +101,13 @@ def main():
 
     # Convert coordinates
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
-    x, y = transformer.transform(center_lat, center_lng)
-    center = np.array([x, y])
+    w, s = transformer.transform(sw_lat, sw_lng)
+    point_sw = np.array([w, s], dtype=np.int32)
 
-    # TODO: compute point from distance AND angle
-    w = int(x - width/2)
-    e = int(x + width/2)
-    s = int(y - height/2)
-    n = int(y + height/2)
-    point_sw = np.array([w, s])
-    point_nw = np.array([w, n])
-    point_se = np.array([e, s])
+    model_dir_out = os.path.join(dir_out, f"{model_name}_{output_format}")
+    if not os.path.exists(model_dir_out):
+        os.mkdir(model_dir_out)
 
-    generate_model_white(data_dir, dir_out, point_sw, point_nw, point_se, tiles_x, tiles_y, aggreg_size, model_name, output_format)
+    generate_model_white(data_dir, dir_out, point_sw, width, height, tiles_x, tiles_y, aggreg_size, model_name, output_format)
 
 main()
