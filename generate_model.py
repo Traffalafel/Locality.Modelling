@@ -20,10 +20,6 @@ HEIGHTS_EXTRA = 5
 HEIGHTS_MULTIPLIER = 1
 FILE_PATTERN = r"DSM_1km_(\d+)_(\d+)\.tif"
 
-# Generates a 3-d mesh from a 2-d array of heights
-def meshify(array: np.ndarray):
-    return meshify_surface(array, 0, 0)
-
 # Splits the 2-d surface array into surface tiles
 def get_tiles(surface: Surface, num_tiles_x: int, num_tiles_y: int) -> np.ndarray:
     tiles_shape = (surface.data.shape[0] // num_tiles_x, surface.data.shape[1] // num_tiles_y)
@@ -133,7 +129,7 @@ def main():
         for idx_y in range(args.num_tiles_y):
 
             tile = tiles[idx_x, idx_y]
-            mesh = meshify(tile)
+            mesh = meshify_surface(tile)
 
             file_out = f"{args.model_name} {idx_x}_{idx_y}.{OUTPUT_FORMAT}"
             file_out_path = os.path.join(args.dir_out, file_out)
