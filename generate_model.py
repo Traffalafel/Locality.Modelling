@@ -10,13 +10,14 @@ from Range import Range
 import re
 import rasterio
 from skimage.util import view_as_blocks
+import matplotlib.pyplot as plt
 
 # Constants
 OUTPUT_FORMAT = "stl"
 DEFAULT_PIXEL_SIZE = 0.4
 CRS_WGS84 = 4326
 CRS_ETRS89 = 25832
-HEIGHTS_EXTRA = 5
+HEIGHTS_EXTRA = 0
 HEIGHTS_MULTIPLIER = 1
 FILE_PATTERN = r"DSM_1km_(\d+)_(\d+)\.tif"
 
@@ -31,7 +32,7 @@ def get_tiles(surface: Surface, num_tiles_x: int, num_tiles_y: int) -> np.ndarra
 def aggregate(surface: Surface, aggregate_size: int) -> Surface:
     block_size = (aggregate_size, aggregate_size)
     blocks = view_as_blocks(surface.data, block_size)
-    max_values = np.max(blocks, axis=(2, 3))
+    max_values = np.mean(blocks, axis=(2, 3))
     return Surface(max_values, surface.range)
 
 # Gets surface 2-d array from coordinate range
@@ -48,7 +49,7 @@ def get_surface(data_dir: str, range: Range, pixel_size: float) -> Surface:
     idx_y_min = int((range.y_min - files_y_min) / pixel_size)
     idx_y_max = idx_y_min + int(range.height / pixel_size)
 
-    data = data[idx_x_min:idx_x_max, idx_y_min:idx_y_max]
+    data = data[idx_y_min:idx_y_max, idx_x_min:idx_x_max]
 
     return Surface(data, range)
 
@@ -60,7 +61,6 @@ def read_files_data(files: list[File]) -> np.ndarray:
     contents, _  = rasterio.merge.merge(datasets)
     data = contents[0,:,:]
     data = np.flip(data, axis=0)
-    data = np.transpose(data)
     return data
 
 # Gets all files in a directory path which match the FILE_PATTERN
@@ -86,21 +86,19 @@ def parse_data_dir(dir_path: str) -> list[File]:
 
     return files
 
-def convert_coordinates(center_lat: float, center_lng: float, width: int, height: int) -> Range:
+def convert_coordinates(sw_lat: float, sw_lng: float, width: int, height: int) -> Range:
     transformer = Transformer.from_crs(CRS_WGS84, CRS_ETRS89)
-    center_x, center_y = transformer.transform(center_lat, center_lng)
-    x_min = int(center_x - width/2)
-    x_max = int(center_x + width/2)
-    y_min = int(center_y - height/2)
-    y_max = int(center_y + height/2)
+    x_min, y_min = transformer.transform(sw_lat, sw_lng)
+    x_max = x_min + width
+    y_max = y_min + height
     return Range(x_min, x_max, y_min, y_max)
 
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("data_dir", help="Path to directory containing height models", type=str)
-    parser.add_argument("center_lat", help="Latitude of center point", type=float)
-    parser.add_argument("center_lng", help="Longtitude of center point", type=float)
+    parser.add_argument("sw_lat", help="Latitude of SW point", type=float)
+    parser.add_argument("sw_lng", help="Longtitude of SW point", type=float)
     parser.add_argument("width", help="Width of model in metres", type=int)
     parser.add_argument("height", help="Height of model in metres", type=int)
     parser.add_argument("aggreg_size", help="How many pixels are aggregated using max method", type=int)
@@ -112,7 +110,7 @@ def main():
 
     args = parser.parse_args()
 
-    surface_range = convert_coordinates(args.center_lat, args.center_lng, args.width, args.height) 
+    surface_range = convert_coordinates(args.sw_lat, args.sw_lng, args.width, args.height) 
 
     pixel_size = args.pixel_size or DEFAULT_PIXEL_SIZE
     surface = get_surface(args.data_dir, surface_range, pixel_size)
@@ -123,7 +121,8 @@ def main():
 
     tiles = get_tiles(surface, args.num_tiles_x, args.num_tiles_y)
 
-    os.makedirs(args.dir_out, exist_ok=True)
+    output_dir = os.path.join(args.dir_out, args.model_name)
+    os.makedirs(output_dir, exist_ok=True)
 
     for idx_x in range(args.num_tiles_x):
         for idx_y in range(args.num_tiles_y):
@@ -131,8 +130,8 @@ def main():
             tile = tiles[idx_x, idx_y]
             mesh = meshify_surface(tile)
 
-            file_out = f"{args.model_name} {idx_x}_{idx_y}.{OUTPUT_FORMAT}"
-            file_out_path = os.path.join(args.dir_out, file_out)
+            file_out_name = f"{args.model_name} {idx_x+1}_{idx_y+1}.{OUTPUT_FORMAT}"
+            file_out_path = os.path.join(output_dir, file_out_name)
             mesh.save_current_mesh(file_out_path)
 
 main()
